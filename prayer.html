@@ -107,7 +107,7 @@
       <thead><tr><th>${base.toLocaleDateString([], { month: "long", year: "numeric" })}</th><th>Hijri</th>${MH.PRAYERS.map(p => `<th>${p.t}</th>`).join("")}</tr></thead><tbody>`;
     for (let d = 1; d <= days; d++) {
       const dt = new Date(y, m, d), t = MH.todayTimes(dt), h = MH.hijri(dt);
-      html += `<tr class="${MH.ymd(dt) === today ? "today" : ""}"><td>${dt.toLocaleDateString([], { weekday: "short", day: "numeric" })}</td><td>${h.day} ${h.name.split(" ")[0].replace(/'$/, "")}</td>${MH.PRAYERS.map(p => `<td>${MH.fmtTime(t[p.id])}</td>`).join("")}</tr>`;
+      html += `<tr class="${MH.ymd(dt) === today ? "today" : ""}"><td>${dt.toLocaleDateString([], { weekday: "short", day: "numeric" })}</td><td>${h.day} ${h.name}</td>${MH.PRAYERS.map(p => `<td>${MH.fmtTime(t[p.id])}</td>`).join("")}</tr>`;
     }
     $("month").innerHTML = html + "</tbody>";
   }

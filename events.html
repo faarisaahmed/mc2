@@ -103,7 +103,7 @@
       <p class="muted" style="margin:0">${MH.esc(e.desc)}</p>
       <div class="meta">📍 ${MH.esc(e.place)}${e.cost ? " · " + MH.esc(e.cost) : ""}</div>
       ${e.sample ? `<div class="meta">⏱ ${e.after ? "Time follows " + e.after[0].toUpperCase() + e.after.slice(1) + " prayer" : "Sample time"}. Confirm with the mosque.</div>` : ""}
-      <div class="tags"><span class="pill">${MH.ageLabel(e)}</span>${aud ? `<span class="pill gold">${aud}</span>` : ""}${e.interests.map(i => `<span class="pill gray">${MH.interestName(i)}</span>`).join("")}</div>
+      <div class="tags"><span class="pill">${MH.ageLabel(e)}</span>${aud ? `<span class="pill gold">${aud}</span>` : ""}${e.interests.filter(i => !(aud && i === "sisters")).map(i => `<span class="pill gray">${MH.interestName(i)}</span>`).join("")}</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn sm ghost" data-ics="${e.key}">＋ Calendar</button>
         <a class="btn sm ghost" href="planner.html?add=${encodeURIComponent(e.key)}&date=${MH.ymd(e.start)}">Plan my day around it</a>

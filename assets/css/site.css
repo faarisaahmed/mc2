@@ -72,7 +72,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .small{font-size:.875rem}
 
 /* ---------- Buttons & links ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 22px;border-radius:980px;border:0;background:var(--green);color:#fff;font-weight:500;font-size:1rem;cursor:pointer;transition:background .15s,transform .1s;text-decoration:none}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 22px;border-radius:980px;border:0;background:var(--green);color:#fff;font-weight:500;font-size:1rem;cursor:pointer;transition:background .15s,transform .1s;text-decoration:none}
 .btn:hover{background:var(--green-deep);text-decoration:none}
 .btn:active{transform:scale(.98)}
 .btn.gold{background:var(--gold);color:var(--green-ink)}
@@ -270,3 +270,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--green);outline:none;b
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:640px){.hide-sm{display:none}}
 @media print{.gnav,.subnav,.gfoot,.toast,.btn,.seg{display:none!important}.tile.dark{background:#fff!important;color:#000!important}.panel,.card{box-shadow:none;border:1px solid #ccc}body{background:#fff}}
+.cal-layout{grid-template-columns:1.6fr 1fr}
+@media (max-width:860px){.cal-layout{grid-template-columns:1fr}}
+@media (max-width:640px){.subnav h1{font-size:1.1rem}.subnav .btn.sm{padding:6px 12px;font-size:.85rem}}

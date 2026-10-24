@@ -21,7 +21,7 @@
   </section>
 
   <section class="section" style="padding-top:32px">
-    <div class="wrap two-col" style="grid-template-columns:1.6fr 1fr">
+    <div class="wrap two-col cal-layout">
       <div>
         <div class="cal" id="cal" role="grid" aria-label="Calendar"></div>
         <p class="small muted" style="margin-top:12px"><span class="pill gold">Holiday</span> Islamic dates follow the Umm al-Qura calendar. Your mosque's moon sighting may differ by a day. You can adjust this in ⚙︎ Settings.</p>
@@ -82,7 +82,7 @@
       if (i >= 35 && d.getMonth() !== m) break;
       const h = MH.hijri(d), hd = MH.islamicDay(d), k = MH.ymd(d), evs = evByDay[k] || [];
       html += `<button class="day${d.getMonth() !== m ? " out" : ""}${k === todayKey ? " today" : ""}${k === selKey ? " sel" : ""}" data-k="${k}" aria-label="${MH.fmtDate(d)}, ${h.day} ${h.name}${hd ? ", " + hd.t : ""}">
-        <span class="g">${d.getDate()}</span><span class="h">${h.day === 1 ? h.name.split(" ")[0] + " " : ""}${h.day}</span>
+        <span class="g">${d.getDate()}</span><span class="h">${h.day === 1 ? h.name : h.day}</span>
         ${hd ? `<span class="hd">${MH.esc(hd.t)}</span>` : ""}
         ${evs.length ? `<span class="dots">${evs.slice(0, 4).map(() => "<i></i>").join("")}</span>` : ""}
       </button>`;
