@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Day Planner · MasjidHub</title>
+<meta name="description" content="Type your schedule and get a day planned around the five prayers and events that suit you.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>AI Day Planner</h1><div class="right"><span class="ai-badge">✦ Demo mode · no key needed</span></div></div></div>
+<main>
+  <section class="tile dark" style="padding:48px 22px 52px">
+    <p class="eyebrow">Your personal planner</p>
+    <h2 class="title">Tell me about your day.<br>I'll fit in every prayer.</h2>
+    <p class="lead">Write it the way you'd text a friend. I'll handle the rest.</p>
+  </section>
+
+  <section class="section" style="padding-top:40px">
+    <div class="wrap two-col">
+      <div class="panel">
+        <form id="form">
+          <div class="field">
+            <label for="day">Which day?</label>
+            <input type="date" id="day" required>
+          </div>
+          <div class="field">
+            <label for="text">Your schedule</label>
+            <textarea id="text" placeholder="e.g. School 8 to 3, soccer at 4:30, homework after dinner, sleep at 10:30"></textarea>
+            <span class="hint">Use times like “9-5”, “at 4pm”, “after dinner”, “for 2 hours”, “wake up at 7”, or “sleep at 11”.</span>
+          </div>
+          <div class="field"><span class="label">Or start from an example</span>
+            <div class="chips" id="examples">
+              <button type="button" class="chip" data-t="School 8 to 3, basketball 4-5:30, homework after dinner, sleep at 10">🎒 Student</button>
+              <button type="button" class="chip" data-t="Work 9-5pm, gym at 6 for an hour, sleep at 11">💼 Office job</button>
+              <button type="button" class="chip" data-t="Shift 7am to 7pm, sleep at 10:30">🏥 Long shift</button>
+              <button type="button" class="chip" data-t="Drop kids at school 8:15, groceries at 10, pick up kids at 3, dinner, sleep at 10">👨‍👩‍👧 Parent</button>
+              <button type="button" class="chip" data-t="Walk in the morning for an hour, doctor at 11:30, nap 2-3, sleep at 9:30">🧓 Retired</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn" type="submit">✦ Plan my day</button>
+            <button class="btn ghost" type="button" id="profile">Personalize (age &amp; interests)</button>
+          </div>
+          <p class="small muted" id="who" style="margin:12px 0 0"></p>
+        </form>
+      </div>
+
+      <div class="panel" id="out" aria-live="polite">
+        <div class="empty" style="padding:30px 10px">
+          <p style="font-size:2.4rem;margin:0">🗓️</p>
+          <p style="margin:6px 0 0">Your plan will show up here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="how">
+    <div class="wrap">
+      <div class="section-head"><p class="eyebrow">How it works</p><h2 class="title">Smart, simple, and private.</h2></div>
+      <div class="grid">
+        <div class="card"><h3>1. Understands everyday words</h3><p class="muted">“8 to 3” means 8am–3pm. “After dinner” follows Maghrib. “Sleep at 10” means 10pm.</p></div>
+        <div class="card"><h3>2. Knows each prayer's window</h3><p class="muted">Every prayer can be prayed from its adhan until the next time limit. If you're busy at the adhan, it finds the first free moment before the window closes.</p></div>
+        <div class="card"><h3>3. Suggests events for you</h3><p class="muted">It looks at your age, interests, and free time, and leaves 20 minutes to get there.</p></div>
+        <div class="card"><h3>4. Stays on your device</h3><p class="muted">This demo runs in your browser with no API key and no account. Your schedule is never sent anywhere.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script src="assets/js/planner.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  let lastPlan = null;
+
+  function who() {
+    const p = MH.prefs, age = MH_DATA.ageGroups.find(a => a.id === p.age);
+    $("who").textContent = age || p.interests.length
+      ? `Planning for: ${age ? age.t.toLowerCase() : "any age"}${p.interests.length ? ", into " + p.interests.map(MH.interestName).join(", ") : ""} · ${p.asr === "hanafi" ? "Hanafi" : "Standard"} Asr · ${p.loc.name}`
+      : `Tip: add your age and interests so I can suggest the right events. · ${p.loc.name}`;
+  }
+
+  function render(res, day) {
+    lastPlan = res;
+    const slot = i => {
+      const cls = i.kind === "prayer" ? "prayer" : i.kind === "event" ? "event" : i.kind === "free" ? "free" : "";
+      const icon = i.kind === "prayer" ? (i.conflict ? "⚠️ " : "🕌 ") : i.kind === "event" ? "✨ " : "";
+      const time = i.kind === "free" ? MH.fmtTime(i.start) : MH.fmtTime(i.start);
+      return `<div class="slot ${cls}"${i.conflict ? ' style="background:#7a2e22;border-color:#7a2e22"' : ""}><span class="tm">${time}</span>
+        <div class="ttl">${icon}${MH.esc(i.label)}${i.kind !== "free" && i.kind !== "prayer" ? ` <span class="small" style="font-weight:400;opacity:.75">until ${MH.fmtTime(i.end)}</span>` : ""}</div>
+        ${i.why ? `<div class="why">${MH.esc(i.why)}</div>` : ""}
+        ${i.kind === "event" ? `<div class="why">📍 ${MH.esc(i.place || "")}</div>` : ""}</div>`;
+    };
+    $("out").innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <h3 style="margin:0;font-size:1.3rem">${MH.fmtDate(day)}</h3><span class="small muted">${MH.fmtHijri(day)}</span></div>
+      <div class="notice green" style="margin-bottom:16px">${res.notes.map(n => `<div style="margin:3px 0">${MH.esc(n)}</div>`).join("")}</div>
+      <div class="timeline">${res.items.map(slot).join("")}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn sm" id="dl">＋ Add to my calendar</button>
+        <button class="btn sm ghost" id="copy">Copy as text</button>
+      </div>`;
+    $("dl").onclick = () => {
+      const evs = res.items.filter(i => i.kind !== "free").map((i, n) => ({ key: "plan" + n + MH.ymd(day), title: i.label, start: i.start, end: i.end, place: i.place || "", desc: i.why || "" }));
+      MH.download(`my-day-${MH.ymd(day)}.ics`, MH.icsFor(evs), "text/calendar"); MH.toast("Calendar file downloaded");
+    };
+    $("copy").onclick = async () => {
+      const txt = `My day: ${MH.fmtDate(day)}\n` + res.items.map(i => `${MH.fmtTime(i.start)}  ${i.label}`).join("\n");
+      try { await navigator.clipboard.writeText(txt); MH.toast("Copied"); } catch (e) { MH.toast("Couldn't copy on this browser"); }
+    };
+  }
+
+  function run() {
+    const text = $("text").value.trim(), day = MH.parseYmd($("day").value);
+    if (!text) { $("text").focus(); MH.toast("Type a little about your day first."); return; }
+    MH.store.set("planner-draft", text);
+    $("out").innerHTML = `<div class="empty"><span class="ai-badge">✦ Planner</span><p style="margin:14px 0 6px">Reading your schedule and checking prayer windows</p><span class="thinking"><i></i><i></i><i></i></span></div>`;
+    setTimeout(() => render(MHPlanner.plan(text, day, { addKey: params.get("add") }), day), 700);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    $("day").value = params.get("date") || MH.ymd(new Date());
+    $("text").value = MH.store.get("planner-draft", "");
+    who(); MH.onPrefs(() => { who(); if (lastPlan) run(); });
+    $("form").onsubmit = e => { e.preventDefault(); run(); };
+    $("profile").onclick = () => MH.openSettings();
+    document.querySelectorAll("#examples .chip").forEach(c => c.onclick = () => { $("text").value = c.dataset.t; run(); });
+    if (params.get("add")) {
+      if (!$("text").value) $("text").value = "Sleep at 10:30";
+      run();
+    }
+  });
+})();
+</script>
+</body>
+</html>

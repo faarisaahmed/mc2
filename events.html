@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Events · MasjidHub</title>
+<meta name="description" content="Mosque events for kids, teens, adults, and families, sorted for you.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Events</h1><div class="right"><button class="btn sm ghost" id="ics">Add all to my calendar</button></div></div></div>
+<main>
+  <section class="tile gold" style="padding:44px 22px 40px">
+    <p class="eyebrow" style="color:#7a5d17">Events &amp; programs</p>
+    <h2 class="title">Who is it for?</h2>
+    <div class="seg" id="age-seg" role="group" aria-label="Age group" style="margin-top:22px;background:rgba(255,255,255,.6)">
+      <button type="button" data-v="">Everyone</button>
+      <button type="button" data-v="adults">Adults</button>
+      <button type="button" data-v="teens">Teens</button>
+      <button type="button" data-v="kids">Kids</button>
+      <button type="button" data-v="young">Young adults</button>
+      <button type="button" data-v="seniors">Seniors</button>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:36px">
+    <div class="wrap">
+      <div class="filters panel" style="margin-bottom:26px;padding:20px 22px">
+        <div class="group"><span class="label">Interests</span><div class="chips" id="int-chips"></div></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end">
+          <div class="group"><span class="label">Sort</span><div class="seg" id="sort-seg"><button type="button" data-v="foryou">Best for me</button><button type="button" data-v="soon">Soonest</button></div></div>
+          <div class="group"><span class="label">When</span><div class="seg" id="range-seg"><button type="button" data-v="7">This week</button><button type="button" data-v="14">2 weeks</button><button type="button" data-v="31">Month</button></div></div>
+          <div class="group" style="flex:1;min-width:200px"><label class="label" for="q">Search</label><input type="search" id="q" placeholder="Basketball, halaqa, sisters…"></div>
+        </div>
+        <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="hide-daily"> Hide regular prayer gatherings (Jumu'ah, halaqas)</label>
+      </div>
+      <p class="muted small" id="count" aria-live="polite"></p>
+      <div id="list"></div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const state = {
+    age: params.get("age") != null ? params.get("age") : (MH.prefs.age || ""),
+    interests: params.get("interest") ? [params.get("interest")] : [],
+    sort: "foryou", range: 14, q: "", hideDaily: false
+  };
+  const ROUTINE = ["jumuah", "fajr-halaqa", "isha-halaqa"];
+  let current = [];
+
+  function seg(id, val) { document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute("aria-pressed", b.dataset.v === String(val))); }
+
+  function render() {
+    seg("age-seg", state.age); seg("sort-seg", state.sort); seg("range-seg", state.range);
+    document.querySelectorAll("#int-chips .chip").forEach(c => c.setAttribute("aria-pressed", state.interests.includes(c.dataset.v)));
+
+    const now = new Date(), to = new Date(now.getTime() + state.range * 86400000);
+    const profile = Object.assign({}, MH.prefs, { age: state.age || null, interests: state.interests.length ? state.interests : MH.prefs.interests });
+    const q = state.q.toLowerCase();
+    let list = MH.occurrences(now, to)
+      .filter(e => !state.age || MH.fitsAge(e, state.age))
+      .filter(e => MH.fitsAudience(e, profile))
+      .filter(e => !state.interests.length || state.interests.some(i => e.interests.includes(i)))
+      .filter(e => !state.hideDaily || !ROUTINE.includes(e.id))
+      .filter(e => !q || (e.title + " " + e.desc + " " + e.place + " " + e.interests.map(MH.interestName).join(" ")).toLowerCase().includes(q))
+      .map(e => Object.assign(e, { score: MH.matchScore(e, profile) }));
+    current = list;
+    $("count").textContent = `${list.length} event${list.length === 1 ? "" : "s"} in the next ${state.range === 7 ? "week" : state.range === 14 ? "2 weeks" : "month"}`;
+
+    if (!list.length) { $("list").innerHTML = `<div class="empty"><p style="font-size:2rem;margin:0">🌙</p><p>No events match. Try another age group or fewer interests.</p></div>`; return; }
+
+    if (state.sort === "foryou") {
+      list.sort((a, b) => b.score - a.score || a.start - b.start);
+      $("list").innerHTML = `<div class="grid">${list.map(card).join("")}</div>`;
+    } else {
+      const byDay = {};
+      list.forEach(e => (byDay[MH.ymd(e.start)] = byDay[MH.ymd(e.start)] || []).push(e));
+      $("list").innerHTML = Object.keys(byDay).sort().map(k => {
+        const d = MH.parseYmd(k), isToday = k === MH.ymd(now);
+        return `<h3 style="margin:28px 0 12px;font-size:1.3rem">${isToday ? "Today" : MH.fmtDate(d)} <span class="muted small" style="font-weight:400">· ${MH.fmtHijri(d)}</span></h3><div class="grid">${byDay[k].map(card).join("")}</div>`;
+      }).join("");
+    }
+    if (location.hash) { const el = document.getElementById(location.hash.slice(1)); if (el) { el.style.boxShadow = "0 0 0 3px var(--gold)"; el.scrollIntoView({ block: "center" }); } }
+  }
+
+  function card(e) {
+    const aud = MH.audienceLabel(e);
+    const match = e.score >= 75 ? `<span class="pill gold match">★ Great match</span>` : "";
+    return `<article class="card ev" id="${e.key}">
+      ${match}
+      <div class="when"><div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
+      <div><div class="meta">${e.start.toLocaleDateString([], { weekday: "long" })}</div><div style="font-weight:600">${MH.fmtTime(e.start)} – ${MH.fmtTime(e.end)}</div></div></div>
+      <h3 style="margin-top:6px${match ? ";padding-right:110px" : ""}">${MH.esc(e.title)}</h3>
+      <p class="muted" style="margin:0">${MH.esc(e.desc)}</p>
+      <div class="meta">📍 ${MH.esc(e.place)}${e.cost ? " · " + MH.esc(e.cost) : ""}</div>
+      ${e.sample ? `<div class="meta">⏱ ${e.after ? "Time follows " + e.after[0].toUpperCase() + e.after.slice(1) + " prayer" : "Sample time"}. Confirm with the mosque.</div>` : ""}
+      <div class="tags"><span class="pill">${MH.ageLabel(e)}</span>${aud ? `<span class="pill gold">${aud}</span>` : ""}${e.interests.map(i => `<span class="pill gray">${MH.interestName(i)}</span>`).join("")}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn sm ghost" data-ics="${e.key}">＋ Calendar</button>
+        <a class="btn sm ghost" href="planner.html?add=${encodeURIComponent(e.key)}&date=${MH.ymd(e.start)}">Plan my day around it</a>
+      </div>
+    </article>`;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    $("int-chips").innerHTML = MH_DATA.interests.map(i => `<button type="button" class="chip gold" data-v="${i.id}">${i.icon} ${i.t}</button>`).join("");
+    document.querySelectorAll("#age-seg button").forEach(b => b.onclick = () => { state.age = b.dataset.v; render(); });
+    document.querySelectorAll("#sort-seg button").forEach(b => b.onclick = () => { state.sort = b.dataset.v; render(); });
+    document.querySelectorAll("#range-seg button").forEach(b => b.onclick = () => { state.range = +b.dataset.v; render(); });
+    document.querySelectorAll("#int-chips .chip").forEach(c => c.onclick = () => {
+      const v = c.dataset.v; state.interests = state.interests.includes(v) ? state.interests.filter(x => x !== v) : state.interests.concat(v); render();
+    });
+    $("q").oninput = e => { state.q = e.target.value; render(); };
+    $("hide-daily").onchange = e => { state.hideDaily = e.target.checked; render(); };
+    $("list").addEventListener("click", e => {
+      const b = e.target.closest("[data-ics]"); if (!b) return;
+      const ev = current.find(x => x.key === b.dataset.ics);
+      if (ev) { MH.download(ev.id + ".ics", MH.icsFor([ev]), "text/calendar"); MH.toast("Calendar file downloaded"); }
+    });
+    $("ics").onclick = () => { MH.download("masjidhub-events.ics", MH.icsFor(current), "text/calendar"); MH.toast(`${current.length} events downloaded`); };
+    MH.onPrefs(render);
+    render();
+  });
+})();
+</script>
+</body>
+</html>
