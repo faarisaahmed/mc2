@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Community · MasjidHub</title>
+<meta name="description" content="Talk to your community: ask the imam, plan carpools, and share reminders.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+  .chat{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start}
+  .channels{display:flex;flex-direction:column;gap:6px}
+  .channels button{display:flex;gap:10px;align-items:center;text-align:left;border:0;background:transparent;padding:12px 14px;border-radius:14px;cursor:pointer;font-size:1rem}
+  .channels button:hover{background:#fff}
+  .channels button[aria-pressed="true"]{background:var(--green);color:#fff}
+  .channels .d{font-size:.8rem;opacity:.7;display:block}
+  .msgs{height:min(56vh,560px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:6px 4px 10px}
+  .msg{max-width:78%;padding:12px 16px;border-radius:18px 18px 18px 6px;background:#fff;border:1px solid var(--line)}
+  .msg.mine{align-self:flex-end;background:var(--green);color:#fff;border-color:var(--green);border-radius:18px 18px 6px 18px}
+  .msg .who{font-size:.8rem;font-weight:600;color:var(--green);margin-bottom:2px}
+  .msg.mine .who{color:var(--gold-bright)}
+  .msg .when{font-size:.72rem;opacity:.6;margin-top:4px}
+  .compose{display:flex;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+  .compose textarea{min-height:52px;height:52px}
+  @media (max-width:760px){.chat{grid-template-columns:1fr}.channels{flex-direction:row;overflow-x:auto}.channels button{flex:none}.channels .d{display:none}.msg{max-width:90%}}
+</style>
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Community</h1><div class="right"><button class="btn sm ghost" id="rename">Change my name</button></div></div></div>
+<main>
+  <section class="tile dark" style="padding:40px 22px 44px">
+    <p class="eyebrow">Community</p>
+    <h2 class="title">Talk to your community.</h2>
+    <p class="lead">Ask questions, find a carpool, and share good reminders.</p>
+  </section>
+  <section class="section" style="padding-top:32px">
+    <div class="wrap">
+      <div class="notice" style="margin-bottom:20px">🧪 <strong>Demo:</strong> messages are saved only in this browser. The full version would sync them through the mosque's moderated server.</div>
+      <div class="chat">
+        <div>
+          <nav class="channels" id="channels" aria-label="Channels"></nav>
+          <div class="card" style="margin-top:16px;padding:18px">
+            <h3 style="font-size:1rem">Adab (etiquette)</h3>
+            <p class="small muted" style="margin:0">Be kind and assume the best. No backbiting or arguing. For personal religious rulings, speak with the imam directly.</p>
+          </div>
+        </div>
+        <div class="panel" style="padding:18px 20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
+            <div><h3 style="margin:0" id="ch-title"></h3><p class="small muted" style="margin:0" id="ch-desc"></p></div>
+          </div>
+          <div class="msgs" id="msgs" aria-live="polite"></div>
+          <form class="compose" id="compose">
+            <label for="text" class="sr-only">Message</label>
+            <textarea id="text" placeholder="Write a message…" maxlength="1000"></textarea>
+            <button class="btn" type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const CHANNELS = [
+    { id: "general", t: "General", icon: "🕌", d: "Everyone at MCGP" },
+    { id: "imam", t: "Ask the Imam", icon: "📖", d: "Questions for the imam" },
+    { id: "events", t: "Events & Carpools", icon: "🚗", d: "Plans and rides" },
+    { id: "youth", t: "Youth", icon: "⭐", d: "Teens and young adults" },
+    { id: "sisters", t: "Sisters", icon: "🌸", d: "A space for sisters" },
+    { id: "volunteer", t: "Volunteers", icon: "🤝", d: "Hunger Van, events, setup" }
+  ];
+  const H = 3600000, ago = h => Date.now() - h * H;
+  const SEED = {
+    general: [{ who: "MasjidHub Team", text: "Assalamu alaikum and welcome! This is a demo of the community space. Messages you write stay on this device.", at: ago(30), sample: true },
+              { who: "Community member", text: "Reminder: Family Fun Night is Saturday 4–8 PM. Bring the kids! 🎈", at: ago(5), sample: true }],
+    imam: [{ who: "MasjidHub Team", text: "In the full version, MCGP's imam or scholars answer questions here, or privately through “Book a session with our scholars”. For now, book at themuslimcenter.org/book-online.", at: ago(48), sample: true }],
+    events: [{ who: "Community member", text: "Anyone driving to Family Fun Night from Plainsboro? 🚗", at: ago(6), sample: true },
+             { who: "Community member", text: "I can take 3 people, leaving at 3:30!", at: ago(5.5), sample: true }],
+    youth: [{ who: "MasjidHub Team", text: "Friday Night Live for middle schoolers is 6:30–7:30 PM in MP-1. RSVP required.", at: ago(20), sample: true }],
+    sisters: [{ who: "MasjidHub Team", text: "Ladies Night: Women Leaders in Islam with Dr. Dalia Fahmy, Nov 6, 6–8 PM. Sisters 12+, $10.", at: ago(26), sample: true }],
+    volunteer: [{ who: "MasjidHub Team", text: "The Hunger Van always needs packers and drivers. Sign up at themuslimcenter.org/volunteer.", at: ago(40), sample: true }]
+  };
+  let ch = new URLSearchParams(location.search).get("c") || "general";
+
+  const mine = () => MH.store.get("chat", {});
+  function name() { return MH.store.get("chat-name", ""); }
+  function askName() {
+    const n = (prompt("What name should others see?", name() || "") || "").trim().slice(0, 40);
+    if (n) { MH.store.set("chat-name", n); MH.toast(`You're “${n}”`); }
+    return n;
+  }
+
+  function renderChannels() {
+    $("channels").innerHTML = CHANNELS.map(c => `<button type="button" data-c="${c.id}" aria-pressed="${c.id === ch}"><span style="font-size:1.3rem">${c.icon}</span><span>${c.t}<span class="d">${c.d}</span></span></button>`).join("");
+  }
+  function renderMsgs() {
+    const c = CHANNELS.find(x => x.id === ch);
+    $("ch-title").textContent = `${c.icon} ${c.t}`; $("ch-desc").textContent = c.d;
+    const list = (SEED[ch] || []).concat((mine()[ch] || []).map(m => Object.assign({ me: true }, m))).sort((a, b) => a.at - b.at);
+    $("msgs").innerHTML = list.map(m => `<div class="msg${m.me ? " mine" : ""}"><div class="who">${MH.esc(m.who)}${m.sample ? ' <span class="pill gray" style="font-size:.65rem;padding:1px 6px">sample</span>' : ""}</div>
+      <div>${MH.esc(m.text).replace(/\n/g, "<br>")}</div><div class="when">${new Date(m.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</div></div>`).join("");
+    $("msgs").scrollTop = $("msgs").scrollHeight;
+    $("text").placeholder = ch === "imam" ? "Ask a question…" : `Message ${c.t}…`;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    renderChannels(); renderMsgs();
+    $("channels").onclick = e => { const b = e.target.closest("[data-c]"); if (!b) return; ch = b.dataset.c; renderChannels(); renderMsgs(); };
+    $("rename").onclick = askName;
+    $("text").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("compose").requestSubmit(); } };
+    $("compose").onsubmit = e => {
+      e.preventDefault();
+      const text = $("text").value.trim(); if (!text) return;
+      const who = name() || askName(); if (!who) return;
+      const all = mine(); (all[ch] = all[ch] || []).push({ who, text, at: Date.now() });
+      MH.store.set("chat", all); $("text").value = ""; renderMsgs();
+    };
+  });
+})();
+</script>
+</body>
+</html>

@@ -269,3 +269,4 @@ input:focus,select:focus,textarea:focus{border-color:var(--green);outline:none;b
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:640px){.hide-sm{display:none}}
+@media print{.gnav,.subnav,.gfoot,.toast,.btn,.seg{display:none!important}.tile.dark{background:#fff!important;color:#000!important}.panel,.card{box-shadow:none;border:1px solid #ccc}body{background:#fff}}

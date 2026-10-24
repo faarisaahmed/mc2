@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Muslim Center of Greater Princeton · MasjidHub</title>
+<meta name="description" content="The Muslim Center of Greater Princeton: a mosque, youth center, and community center open to all.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1 id="sub-name">Mosque</h1><div class="right"><a class="btn sm gold" href="donate.html">Donate</a></div></div></div>
+<main id="page"></main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const id = new URLSearchParams(location.search).get("id") || "mcgp";
+  const m = MH_DATA.mosques.find(x => x.id === id) || MH_DATA.mosques[0];
+  const e = MH.esc;
+
+  function render() {
+    document.title = `${m.name} · MasjidHub`;
+    document.getElementById("sub-name").textContent = m.short;
+    const now = new Date(), t = MH.prayerTimes(now, m.lat, m.lng, MH.prefs);
+    const next = MH.PRAYERS.filter(p => !p.notPrayer).find(p => t[p.id] > now);
+    const to = new Date(now.getTime() + 14 * 86400000);
+    const evs = MH.occurrences(now, to).filter(x => x.mosque.id === m.id && !["fajr-halaqa", "isha-halaqa", "jumuah"].includes(x.id));
+    const seen = new Set(), upcoming = evs.filter(x => !seen.has(x.id) && seen.add(x.id)).slice(0, 6);
+
+    document.getElementById("page").innerHTML = `
+    <section class="tile dark" style="padding:52px 22px 56px">
+      <p class="eyebrow">${e(m.values)}</p>
+      <h2 class="headline" style="font-size:clamp(2.1rem,5.4vw,3.8rem)">${e(m.name)}</h2>
+      <p class="lead">${e(m.about)}</p>
+      <div class="cta-row">
+        <a class="btn gold" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(m.address)}">Directions</a>
+        <a class="btn ghost" href="tel:${m.phone.replace(/\D/g, "")}">Call</a>
+        <a class="chev" target="_blank" rel="noopener" href="${m.website}">Official website</a>
+      </div>
+      <div class="prayer-strip wrap" style="padding-bottom:0">${MH.PRAYERS.map(p => `<div class="p ${next && p.id === next.id ? "next" : t[p.id] < now ? "past" : ""}"><div class="n">${p.t}</div><div class="t">${MH.fmtTime(t[p.id])}</div></div>`).join("")}</div>
+      <p class="small" style="color:#c9d8ce;margin:14px 0 0">Adhan times calculated for the mosque's location. For iqamah times, use the <strong>Athan+</strong> app or check with MCGP.</p>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head"><p class="eyebrow">About</p><h2 class="title">Faith, community, education, and youth under one roof.</h2></div>
+        <div class="grid">${m.pillars.map(p => `<div class="card"><h3>${e(p.t)}</h3><p class="muted">${e(p.d)}</p></div>`).join("")}</div>
+        <div class="chips" style="margin-top:22px">${m.features.map(f => `<span class="pill">${e(f)}</span>`).join("")}</div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="wrap">
+        <div class="section-head" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap"><div><p class="eyebrow">Next two weeks</p><h2 class="title">Upcoming at ${e(m.short)}</h2></div><a class="chev" href="events.html">All events</a></div>
+        <div class="grid">${upcoming.map(x => `<a class="card" href="events.html#${x.key}" style="color:inherit;text-decoration:none">
+          <span class="pill">${x.start.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · ${MH.fmtTime(x.start)}</span>
+          <h3 style="margin-top:10px">${e(x.title)}</h3><p class="muted small">${e(x.desc)}</p><p class="small">${MH.ageLabel(x)}${MH.audienceLabel(x) ? " · " + MH.audienceLabel(x) : ""}</p></a>`).join("")}</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head"><p class="eyebrow">Education</p><h2 class="title">Keep learning.</h2></div>
+        <div class="grid">${m.education.map(x => `<a class="card" href="${x.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><h3 style="color:var(--green)">${e(x.t)} ›</h3><p class="muted">${e(x.d)}</p></a>`).join("")}</div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="wrap">
+        <div class="section-head"><p class="eyebrow">Services</p><h2 class="title">Here for you.</h2></div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${m.services.map(x => `<a class="card" href="${x.url}" target="_blank" rel="noopener" style="padding:18px 20px;font-weight:600">${e(x.t)} ›</a>`).join("")}</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap two-col">
+        <div><p class="eyebrow">Visit</p><h2 class="title">Contact &amp; location</h2>
+          <p class="lead">${e(m.address)}</p>
+          <p style="font-size:1.1rem;margin:16px 0 0">📞 <a href="tel:${m.phone.replace(/\D/g, "")}">${e(m.phone)}</a></p>
+          <p style="margin:10px 0 0">${m.social.map(s => `<a href="${s.url}" target="_blank" rel="noopener">${e(s.t)}</a>`).join(" · ")}</p></div>
+        <div class="panel">${m.contacts.map(c => `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="small muted">${e(c.t)}</div><a href="mailto:${c.v}">${e(c.v)}</a></div>`).join("")}
+          <p class="small muted" style="margin:14px 0 0">© 2018–2026 Muslim Center of Greater Princeton. Not-for-profit organization recognized as tax-exempt under IRS code section 501(c)(3).</p></div>
+      </div>
+    </section>`;
+  }
+  document.addEventListener("DOMContentLoaded", () => { render(); MH.onPrefs(render); });
+})();
+</script>
+</body>
+</html>
