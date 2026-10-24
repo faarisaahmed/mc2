@@ -268,3 +268,4 @@ input:focus,select:focus,textarea:focus{border-color:var(--green);outline:none;b
 @media (max-width:640px){.gfoot .cols{grid-template-columns:1fr 1fr}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media (max-width:640px){.hide-sm{display:none}}

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prayer Times · MasjidHub</title>
+<meta name="description" content="Accurate daily prayer times for your location and school of thought.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Prayer Times</h1><div class="right"><a class="btn sm ghost" href="qibla.html">Qibla</a><button class="btn sm" id="change">Change settings</button></div></div></div>
+<main>
+  <section class="tile dark" style="padding:48px 22px 52px">
+    <p class="eyebrow" id="date-line">&nbsp;</p>
+    <h2 class="headline"><span id="nx-name">…</span> <span style="color:var(--gold-bright)" id="nx-time"></span></h2>
+    <p class="lead">Starts in <strong class="countdown" id="nx-count" style="color:#fff">…</strong></p>
+    <p class="small" style="color:#c9d8ce;margin-top:16px">📍 <span id="loc"></span> · <span id="method"></span> · Asr: <span id="asr"></span></p>
+  </section>
+
+  <section class="section">
+    <div class="wrap two-col">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0;font-size:1.4rem">Today</h3>
+          <div class="seg" role="group" aria-label="Day">
+            <button type="button" data-off="-1">Yesterday</button><button type="button" data-off="0" aria-pressed="true">Today</button><button type="button" data-off="1">Tomorrow</button>
+          </div>
+        </div>
+        <p class="muted small" id="day-label" style="margin:6px 0 4px"></p>
+        <table class="ptable" id="today" aria-label="Prayer times"></table>
+        <p class="small muted" style="margin:14px 0 0">These are adhan (start) times. Your mosque's iqamah (congregation) time is usually 10–20 minutes later. Always confirm with your local masjid.</p>
+      </div>
+
+      <div style="display:grid;gap:20px">
+        <div class="panel">
+          <h3 style="margin:0 0 4px;font-size:1.2rem">Your school of thought</h3>
+          <p class="small muted" style="margin:0 0 12px">Changes the Asr time.</p>
+          <div class="seg" id="asr-seg" role="group" aria-label="Asr calculation">
+            <button type="button" data-v="standard">Shafi'i · Maliki · Hanbali</button><button type="button" data-v="hanafi">Hanafi</button>
+          </div>
+          <label class="label" for="method-sel" style="display:block;margin:18px 0 8px">Fajr &amp; Isha method</label>
+          <select id="method-sel"></select>
+        </div>
+        <div class="panel">
+          <h3 style="margin:0 0 4px;font-size:1.2rem">🔔 Adhan reminders</h3>
+          <p class="small muted" style="margin:0 0 12px">Get a notification at each prayer time while this page is open.</p>
+          <button class="btn sm" id="notify">Turn on reminders</button>
+        </div>
+        <div class="panel">
+          <h3 style="margin:0 0 4px;font-size:1.2rem">Day length</h3>
+          <p class="muted" style="margin:0" id="daylen"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt">
+    <div class="wrap">
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap">
+        <div><p class="eyebrow">Timetable</p><h2 class="title">This month</h2></div>
+        <div style="display:flex;gap:8px"><button class="btn sm ghost" id="prev-m">‹ Prev</button><button class="btn sm ghost" id="next-m">Next ›</button><button class="btn sm" id="print">Print</button></div>
+      </div>
+      <div class="panel scroll-x"><table class="week" id="month"></table></div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let dayOff = 0, monthOff = 0, notifyOn = false;
+  const fired = new Set();
+
+  function renderHead() {
+    const now = new Date(), next = MH.nextPrayer(now), p = MH.prefs;
+    $("date-line").textContent = `${MH.fmtDate(now)} · ${MH.fmtHijri(now)}`;
+    $("nx-name").textContent = next.t;
+    $("nx-time").textContent = MH.fmtTime(next.time) + (next.tomorrow ? " tomorrow" : "");
+    $("loc").textContent = p.loc.name;
+    $("method").textContent = MH.METHODS[p.method].t;
+    $("asr").textContent = p.asr === "hanafi" ? "Hanafi" : "Standard";
+  }
+
+  function renderDay() {
+    const now = new Date(), day = new Date(); day.setDate(day.getDate() + dayOff);
+    const t = MH.todayTimes(day), next = MH.nextPrayer(now);
+    $("day-label").textContent = `${MH.fmtDate(day)} · ${MH.fmtHijri(day)}`;
+    $("today").innerHTML = MH.PRAYERS.map(p => {
+      let cls = "";
+      if (dayOff === 0) cls = p.id === next.id && !next.tomorrow ? "next" : t[p.id] < now ? "past" : "";
+      return `<tr class="${cls}"><td>${p.t}<span class="ar">${p.ar}</span>${p.notPrayer ? ' <span class="pill gray">ends Fajr</span>' : ""}</td><td class="t">${MH.fmtTime(t[p.id])}</td></tr>`;
+    }).join("");
+    const mins = Math.round((t.sunset - t.sunrise) / 60000);
+    $("daylen").textContent = `${Math.floor(mins / 60)}h ${mins % 60}m of daylight. Sunrise ${MH.fmtTime(t.sunrise)}, sunset ${MH.fmtTime(t.sunset)}.`;
+    document.querySelectorAll("[data-off]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.off === dayOff));
+  }
+
+  function renderMonth() {
+    const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + monthOff);
+    const y = base.getFullYear(), m = base.getMonth(), days = new Date(y, m + 1, 0).getDate(), today = MH.ymd(new Date());
+    let html = `<caption class="sr-only">${base.toLocaleDateString([], { month: "long", year: "numeric" })}</caption>
+      <thead><tr><th>${base.toLocaleDateString([], { month: "long", year: "numeric" })}</th><th>Hijri</th>${MH.PRAYERS.map(p => `<th>${p.t}</th>`).join("")}</tr></thead><tbody>`;
+    for (let d = 1; d <= days; d++) {
+      const dt = new Date(y, m, d), t = MH.todayTimes(dt), h = MH.hijri(dt);
+      html += `<tr class="${MH.ymd(dt) === today ? "today" : ""}"><td>${dt.toLocaleDateString([], { weekday: "short", day: "numeric" })}</td><td>${h.day} ${h.name.split(" ")[0].replace(/'$/, "")}</td>${MH.PRAYERS.map(p => `<td>${MH.fmtTime(t[p.id])}</td>`).join("")}</tr>`;
+    }
+    $("month").innerHTML = html + "</tbody>";
+  }
+
+  function renderPrefs() {
+    document.querySelectorAll("#asr-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === MH.prefs.asr));
+    $("method-sel").value = MH.prefs.method;
+  }
+
+  function tick() {
+    const now = new Date(), next = MH.nextPrayer(now);
+    $("nx-count").textContent = MH.fmtCountdown(next.time - now);
+    if (notifyOn) {
+      const t = MH.todayTimes(now);
+      MH.PRAYERS.filter(p => !p.notPrayer).forEach(p => {
+        const k = MH.ymd(now) + p.id, diff = now - t[p.id];
+        if (diff >= 0 && diff < 60000 && !fired.has(k)) {
+          fired.add(k);
+          try { new Notification(`It's time for ${p.t}`, { body: `${p.t} began at ${MH.fmtTime(t[p.id])} in ${MH.prefs.loc.name}.`, icon: "assets/img/icon.svg" }); } catch (e) { MH.toast(`It's time for ${p.t}`); }
+        }
+      });
+    }
+    if (next.time - now < 1000) { renderHead(); renderDay(); }
+  }
+
+  function all() { renderHead(); renderDay(); renderMonth(); renderPrefs(); }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    $("method-sel").innerHTML = Object.entries(MH.METHODS).map(([k, m]) => `<option value="${k}">${m.t}</option>`).join("");
+    all(); tick(); setInterval(tick, 1000);
+    MH.onPrefs(all);
+    $("change").onclick = () => MH.openSettings();
+    document.querySelectorAll("[data-off]").forEach(b => b.onclick = () => { dayOff = +b.dataset.off; renderDay(); });
+    document.querySelectorAll("#asr-seg button").forEach(b => b.onclick = () => { MH.setPrefs({ asr: b.dataset.v }); MH.toast(`Asr: ${b.dataset.v === "hanafi" ? "Hanafi" : "Shafi'i, Maliki, Hanbali"}`); });
+    $("method-sel").onchange = e => MH.setPrefs({ method: e.target.value });
+    $("prev-m").onclick = () => { monthOff--; renderMonth(); };
+    $("next-m").onclick = () => { monthOff++; renderMonth(); };
+    $("print").onclick = () => window.print();
+    $("notify").onclick = async e => {
+      if (!("Notification" in window)) return MH.toast("This browser doesn't support notifications.");
+      const perm = await Notification.requestPermission();
+      notifyOn = perm === "granted";
+      e.target.textContent = notifyOn ? "Reminders on ✓" : "Turn on reminders";
+      MH.toast(notifyOn ? "You'll be reminded at each prayer while this tab is open." : "Notifications were blocked in your browser settings.");
+    };
+  });
+})();
+</script>
+</body>
+</html>

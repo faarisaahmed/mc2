@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qibla Finder · MasjidHub</title>
+<meta name="description" content="Find the direction of the Kaaba from wherever you are.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Qibla</h1><div class="right"><button class="btn sm ghost" id="gps">📍 Use my location</button></div></div></div>
+<main>
+  <section class="tile dark" style="padding:44px 22px 56px">
+    <p class="eyebrow" id="where">&nbsp;</p>
+    <div class="compass" id="compass" role="img" aria-label="Qibla compass">
+      <svg class="dial" id="dial" viewBox="0 0 300 300" aria-hidden="true">
+        <circle cx="150" cy="150" r="146" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.2)" stroke-width="2"/>
+        <g id="ticks"></g>
+        <text x="150" y="40" fill="#e2c174" font-size="22" font-weight="700" text-anchor="middle">N</text>
+        <text x="262" y="158" fill="#c9d8ce" font-size="16" text-anchor="middle">E</text>
+        <text x="150" y="274" fill="#c9d8ce" font-size="16" text-anchor="middle">S</text>
+        <text x="38" y="158" fill="#c9d8ce" font-size="16" text-anchor="middle">W</text>
+        <g id="kaaba-mark"><rect x="138" y="52" width="24" height="24" rx="3" fill="#111" stroke="#c8a24a" stroke-width="2.5"/><rect x="138" y="58" width="24" height="4" fill="#c8a24a"/></g>
+      </svg>
+      <svg class="needle" id="needle" viewBox="0 0 300 300" aria-hidden="true">
+        <path d="M150 70 L163 150 L150 140 L137 150 Z" fill="#c8a24a"/>
+        <path d="M150 230 L163 150 L150 160 L137 150 Z" fill="rgba(255,255,255,.25)"/>
+      </svg>
+      <div class="center"></div>
+    </div>
+    <div class="big-num" id="deg" style="margin-top:14px">…</div>
+    <p class="lead" id="hint">from true north</p>
+    <div class="cta-row" id="live-row"><button class="btn gold" id="live">Use phone compass</button></div>
+  </section>
+
+  <section class="section">
+    <div class="wrap grid">
+      <div class="card"><h3>How to use it</h3>
+        <p class="muted"><strong>On a phone:</strong> tap “Use phone compass”, hold the phone flat, and turn until the gold arrow points straight up and the Kaaba lines up.</p>
+        <p class="muted"><strong>On a computer:</strong> face north, then turn clockwise by the number of degrees shown.</p></div>
+      <div class="card"><h3>Distance to Makkah</h3><p class="big-num" id="dist" style="font-size:2.2rem">…</p><p class="muted small">Along the shortest path over the Earth (great circle).</p></div>
+      <div class="card"><h3>Tips for accuracy</h3><p class="muted">Keep away from magnets, speakers, and metal tables. If the compass seems off, wave your phone in a figure-8 to recalibrate. Your mosque's prayer lines are the best guide when you're there.</p></div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let bearing = 0, heading = null, buzzed = false;
+
+  function drawTicks() {
+    let s = "";
+    for (let a = 0; a < 360; a += 5) {
+      const long = a % 30 === 0, r1 = long ? 118 : 126, r2 = 136, rad = (a - 90) * Math.PI / 180;
+      s += `<line x1="${150 + r1 * Math.cos(rad)}" y1="${150 + r1 * Math.sin(rad)}" x2="${150 + r2 * Math.cos(rad)}" y2="${150 + r2 * Math.sin(rad)}" stroke="rgba(255,255,255,${long ? .55 : .2})" stroke-width="${long ? 2 : 1}"/>`;
+    }
+    $("ticks").innerHTML = s;
+  }
+
+  function render() {
+    const loc = MH.prefs.loc;
+    bearing = MH.qiblaBearing(loc.lat, loc.lng);
+    $("where").textContent = `📍 ${loc.name}`;
+    $("kaaba-mark").setAttribute("transform", `rotate(${bearing} 150 150)`);
+    $("dist").textContent = `${Math.round(MH.distanceKm(loc, MH.KAABA) * 0.621371).toLocaleString()} mi`;
+    update();
+  }
+
+  function update() {
+    if (heading == null) {
+      $("dial").style.transform = "none";
+      $("needle").style.transform = `rotate(${bearing}deg)`;
+      $("deg").textContent = `${bearing.toFixed(1)}° ${MH.compassWord(bearing)}`;
+      $("hint").textContent = "clockwise from true north";
+      return;
+    }
+    $("dial").style.transform = `rotate(${-heading}deg)`;
+    const rel = ((bearing - heading) % 360 + 540) % 360 - 180;   // -180..180
+    $("needle").style.transform = `rotate(${rel}deg)`;
+    $("deg").textContent = `${bearing.toFixed(0)}°`;
+    if (Math.abs(rel) <= 4) {
+      $("hint").innerHTML = `<strong style="color:var(--gold-bright)">You're facing the Qibla ✓</strong>`;
+      if (!buzzed && navigator.vibrate) { navigator.vibrate(60); buzzed = true; }
+    } else {
+      buzzed = false;
+      $("hint").textContent = `Turn ${rel > 0 ? "right" : "left"} ${Math.abs(rel).toFixed(0)}°`;
+    }
+  }
+
+  function onOrient(e) {
+    let h = null;
+    if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;     // iOS, already true-ish north
+    else if (e.absolute && e.alpha != null) h = 360 - e.alpha;                    // Android absolute
+    if (h == null) return;
+    heading = (h + 360) % 360;
+    update();
+  }
+
+  async function startLive() {
+    try {
+      if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+        const r = await DeviceOrientationEvent.requestPermission();
+        if (r !== "granted") return MH.toast("Compass access was not allowed.");
+      }
+      window.addEventListener("deviceorientationabsolute", onOrient, true);
+      window.addEventListener("deviceorientation", onOrient, true);
+      $("live").textContent = "Compass on ✓";
+      setTimeout(() => { if (heading == null) MH.toast("No compass found on this device. Use the degrees shown instead."); }, 2500);
+    } catch (e) { MH.toast("Compass isn't available here."); }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    drawTicks(); render(); MH.onPrefs(render);
+    $("live").onclick = startLive;
+    $("gps").onclick = async () => {
+      try { MH.toast("Finding you…"); MH.setPrefs({ loc: await MH.locate() }); MH.toast("Location updated"); }
+      catch (e) { MH.toast(e.message); }
+    };
+  });
+})();
+</script>
+</body>
+</html>
