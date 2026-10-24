@@ -11,33 +11,41 @@
 
   /* ---------------- Preferences ---------------- */
   const DEFAULT_LOC = { lat: 40.2813, lng: -74.5704, name: "West Windsor, NJ", source: "default" };
+  const PREFS_VERSION = 2;
   const DEFAULT_PREFS = {
+    v: PREFS_VERSION,
     loc: DEFAULT_LOC,
     method: "ISNA",        // calculation method key, see METHODS
-    asr: "standard",       // "standard" (Shafi'i, Maliki, Hanbali) or "hanafi"
+    asr: "hanafi",         // "hanafi" (default) or "standard" (Shafi'i, Maliki, Hanbali)
     age: null,             // ageGroups id
     gender: "any",         // any | male | female
     interests: [],
     text: "md",            // md | lg | xl
+    theme: "auto",         // auto (follow the device) | light | dark
     hijriAdj: 0,           // -2..+2 days, to match local moon sighting
     clock: "12",           // 12 | 24
     onboarded: false
   };
-  let prefs = Object.assign({}, DEFAULT_PREFS, store.get("prefs", {}));
+  const saved = store.get("prefs", {});
+  // v2 made Hanafi the default Asr. Earlier visitors never chose it on purpose, so move them over once.
+  if (saved.v !== PREFS_VERSION) { saved.asr = "hanafi"; saved.v = PREFS_VERSION; }
+  let prefs = Object.assign({}, DEFAULT_PREFS, saved);
   const listeners = [];
   function setPrefs(patch) {
     prefs = Object.assign({}, prefs, patch);
     store.set("prefs", prefs);
-    applyTextSize();
+    applyDisplay();
     listeners.forEach(fn => { try { fn(prefs); } catch (e) { console.error(e); } });
   }
   function onPrefs(fn) { listeners.push(fn); }
-  function applyTextSize() {
+  function applyDisplay() {
     const h = document.documentElement;
     h.classList.toggle("text-lg", prefs.text === "lg");
     h.classList.toggle("text-xl", prefs.text === "xl");
+    if (prefs.theme === "light" || prefs.theme === "dark") h.setAttribute("data-theme", prefs.theme);
+    else h.removeAttribute("data-theme");
   }
-  applyTextSize();
+  applyDisplay();
 
   /* ---------------- Prayer times ----------------
      Standard astronomical method (sun declination + equation of time),
@@ -240,7 +248,7 @@
         const loc = { lat: +pos.coords.latitude.toFixed(4), lng: +pos.coords.longitude.toFixed(4), name: "Your location", source: "gps" };
         try { loc.name = await reverseName(loc.lat, loc.lng) || loc.name; } catch (e) { /* keep generic */ }
         resolve(loc);
-      }, err => reject(new Error(err.code === 1 ? "Location permission was denied. You can search for your city instead." : "Couldn't get your location. Try searching for your city.")), { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
+      }, err => reject(new Error(err.code === 1 ? "Location sharing is turned off for this site. No problem: type your city or zip code below instead." : "We couldn't find your location. Please type your city or zip code below.")), { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
     });
   }
   async function reverseName(lat, lng) {
@@ -360,17 +368,58 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
+  /* ---------------- Icons (simple line icons, no emoji) ---------------- */
+  const ICONS = {
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
+    calendar: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    sparkle: '<path d="M12 3.5l1.8 5 5 1.8-5 1.8-1.8 5-1.8-5-5-1.8 5-1.8z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+    chat: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/>',
+    pin: '<path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    heart: '<path d="M12 20s-7.5-4.6-9.2-9.3C1.7 7.4 4 4.5 7.2 4.5c2 0 3.4 1.1 4.8 2.8 1.4-1.7 2.8-2.8 4.8-2.8 3.2 0 5.5 2.9 4.4 6.2C19.5 15.4 12 20 12 20z"/>',
+    mosque: '<path d="M12 3c-.6 1.6-4 3.1-4 6.4V12h8V9.4C16 6.1 12.6 4.6 12 3z"/><path d="M4 21v-9h16v9M2.5 21h19M10 21v-3.5a2 2 0 0 1 4 0V21M4 12V8.5M20 12V8.5"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/>',
+    book: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13"/>',
+    grad: '<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v5c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3v-5M21.5 9v5"/>',
+    star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+    ball: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.6 5.6c3.5 3.5 3.5 9.3 0 12.8M18.4 5.6c-3.5 3.5-3.5 9.3 0 12.8"/>',
+    flower: '<circle cx="12" cy="7.5" r="3"/><circle cx="12" cy="16.5" r="3"/><circle cx="7.5" cy="12" r="3"/><circle cx="16.5" cy="12" r="3"/><circle cx="12" cy="12" r="1.2"/>',
+    hand: '<path d="M7 12V6a1.5 1.5 0 0 1 3 0v5M10 10.5V4.5a1.5 1.5 0 0 1 3 0v6M13 10.5V5.5a1.5 1.5 0 0 1 3 0v6M16 10.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-.5a6 6 0 0 1-5-2.7L4 14.6a1.6 1.6 0 0 1 2.6-1.8L7 13.5"/>',
+    smile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    alert: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.2h.01"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+    moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    auto: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
+    locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    phone: '<path d="M5 3.5h3.5l1.5 4.5-2 1.3a11 11 0 0 0 6.7 6.7l1.3-2 4.5 1.5V19a2 2 0 0 1-2 2A17 17 0 0 1 3 5.5a2 2 0 0 1 2-2z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+    lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+    flask: '<path d="M9.5 3h5M10 3v6L4.8 18.2A1.9 1.9 0 0 0 6.5 21h11a1.9 1.9 0 0 0 1.7-2.8L14 9V3"/><path d="M7.5 15h9"/>',
+    close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    car: '<path d="M5 16.5V12l2-5h10l2 5v4.5M3.5 16.5h17M7 19.5v-3M17 19.5v-3"/><circle cx="7.5" cy="13.5" r=".8"/><circle cx="16.5" cy="13.5" r=".8"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    text: '<path d="M4 19 9 5l5 14M5.8 14h6.4M15 19l3-8 3 8M15.9 16.5h4.2"/>',
+    menu: '<path d="M4 8h16M4 16h16"/>',
+    home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>'
+  };
+  function icon(name, cls) {
+    return `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+  }
+
   /* ---------------- Page chrome ---------------- */
   const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#c8a24a"/><path d="M16 6c-1 2.3-5.5 4.2-5.5 9v9h11v-9c0-4.8-4.5-6.7-5.5-9z" fill="#0a3622"/><rect x="8" y="24" width="16" height="2" rx="1" fill="#0a3622"/><path d="M16 3.5v2.5" stroke="#0a3622" stroke-width="1.4" stroke-linecap="round"/><path d="M17.8 11.2a2.6 2.6 0 1 1-2.2-3.7 2 2 0 1 0 2.2 3.7z" fill="#e2c174"/></svg>`;
   const NAV = [
-    ["prayer.html", "Prayer Times"], ["qibla.html", "Qibla"], ["events.html", "Events"], ["planner.html", "AI Planner"],
-    ["community.html", "Community"], ["map.html", "Mosques"], ["calendar.html", "Calendar"], ["donate.html", "Donate"]
+    ["prayer.html", "Prayer Times", "clock"], ["qibla.html", "Qibla", "compass"], ["events.html", "Events", "calendar"],
+    ["planner.html", "AI Planner", "sparkle"], ["community.html", "Community", "chat"], ["map.html", "Mosques", "pin"],
+    ["calendar.html", "Calendar", "moon"], ["donate.html", "Donate", "heart"]
   ];
-  const ICON = {
-    gear: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
-    text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 19 9 5l5 14M5.8 14h6.4M15 19l3-8 3 8M15.9 16.5h4.2"/></svg>`,
-    menu: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>`
-  };
 
   function renderChrome() {
     const here = location.pathname.split("/").pop() || "index.html";
@@ -378,19 +427,25 @@
     header.className = "gnav";
     header.innerHTML = `<div class="wrap">
       <a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
-      <nav class="links" aria-label="Main">${NAV.map(([h, t]) => `<a href="${h}"${h === here ? ' aria-current="page"' : ""}>${t}</a>`).join("")}</nav>
+      <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(([h, t, ic]) => `<a href="${h}"${h === here ? ' aria-current="page"' : ""}>${icon(ic)}${t}</a>`).join("")}</nav>
       <div class="tools">
-        <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${ICON.text}</button>
-        <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${ICON.gear}</button>
-        <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false">${ICON.menu}</button>
+        <button class="icon-btn" id="mh-text" title="Make text bigger or smaller" aria-label="Change text size">${icon("text")}<span class="lbl">Text size</span></button>
+        <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}<span class="lbl">Settings</span></button>
+        <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false" aria-controls="mh-links">${icon("menu")}</button>
       </div></div>`;
     document.body.prepend(header);
-    header.querySelector("#mh-menu").onclick = e => { const o = header.classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", o); };
+    const style = document.createElement("style");
+    style.textContent = "@media (min-width:981px){.gnav .home-link{display:none}}";
+    document.head.appendChild(style);
+    header.querySelector("#mh-menu").onclick = e => {
+      const o = header.classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", o);
+      e.currentTarget.innerHTML = icon(o ? "close" : "menu");
+    };
     header.querySelector("#mh-settings").onclick = () => openSettings();
     header.querySelector("#mh-text").onclick = () => {
       const next = { md: "lg", lg: "xl", xl: "md" }[prefs.text] || "lg";
       setPrefs({ text: next });
-      toast({ md: "Normal text", lg: "Large text", xl: "Extra large text" }[next]);
+      toast({ md: "Normal text size", lg: "Large text", xl: "Extra large text" }[next]);
     };
 
     const foot = document.createElement("footer");
@@ -407,117 +462,198 @@
     document.body.appendChild(foot);
 
     const t = document.createElement("div"); t.className = "toast"; t.id = "mh-toast"; t.setAttribute("role", "status"); document.body.appendChild(t);
+
+    // Static pages write <i data-ic="pin"></i> where an icon belongs.
+    document.querySelectorAll("i[data-ic]").forEach(el => { el.outerHTML = icon(el.dataset.ic, el.className); });
   }
 
   let toastTimer;
   function toast(msg) {
     const t = document.getElementById("mh-toast"); if (!t) return;
     t.textContent = msg; t.classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
   }
 
-  /* ---------------- Settings / onboarding sheet ---------------- */
-  function openSettings(welcome) {
-    let draft = JSON.parse(JSON.stringify(prefs));
+  /* ---------------- Settings: one simple question per screen ---------------- */
+  // openSettings()            -> all settings, starting at the first step
+  // openSettings(true)        -> first-visit welcome
+  // openSettings({step:"loc"}) -> jump straight to one step
+  function openSettings(arg) {
+    const welcome = arg === true;
+    const steps = welcome ? ["loc", "school", "age", "interests"] : ["loc", "school", "age", "interests", "display"];
+    let i = Math.max(0, steps.indexOf(arg && arg.step));
+    const draft = JSON.parse(JSON.stringify(prefs));
+    let searchTimer = null, searchToken = 0;
+
     const bd = document.createElement("div");
     bd.className = "sheet-backdrop open";
-    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-title">
-      <h2 id="sh-title">${welcome ? "Assalamu alaikum 👋" : "My settings"}</h2>
-      <p class="muted" style="margin:0">${welcome ? "Answer a few quick questions and MasjidHub will fit prayer times and events to you. You can change these any time with the ⚙︎ button." : "These stay on this device."}</p>
-
-      <div class="step"><div class="label">📍 Where are you?</div>
-        <p class="small muted" style="margin:4px 0 10px">Now: <strong id="sh-locname">${esc(draft.loc.name)}</strong></p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn sm" id="sh-gps" type="button">Use my location</button>
-          <form id="sh-search" style="display:flex;gap:8px;flex:1;min-width:220px"><input type="search" id="sh-q" placeholder="Or type a city or zip" aria-label="City or zip code"><button class="btn sm ghost" type="submit">Find</button></form>
-        </div>
-        <div id="sh-results" class="chips" style="margin-top:10px"></div>
-      </div>
-
-      <div class="step"><div class="label">🕌 School of thought (for Asr time)</div>
-        <div class="seg" id="sh-asr" style="margin-top:8px">
-          <button type="button" data-v="standard">Shafi'i · Maliki · Hanbali</button><button type="button" data-v="hanafi">Hanafi</button>
-        </div>
-        <p class="small muted" style="margin:6px 0 0">Hanafi Asr starts later, when an object's shadow is twice its length.</p>
-      </div>
-
-      <div class="step"><label class="label" for="sh-method">🌅 Calculation method (Fajr &amp; Isha)</label>
-        <select id="sh-method" style="margin-top:8px">${Object.entries(METHODS).map(([k, m]) => `<option value="${k}">${m.t}</option>`).join("")}</select>
-        <p class="small muted" style="margin:6px 0 0">Most mosques in the US and Canada use ISNA. Pick Jafari for Shia timings.</p>
-      </div>
-
-      <div class="step"><div class="label">🎂 Age group</div>
-        <div class="chips" id="sh-age" style="margin-top:8px">${MH_DATA.ageGroups.map(a => `<button type="button" class="chip" data-v="${a.id}">${a.t} <span class="small muted">${a.d}</span></button>`).join("")}</div>
-      </div>
-
-      <div class="step"><div class="label">🙋 Show me events for</div>
-        <div class="seg" id="sh-gender" style="margin-top:8px"><button type="button" data-v="any">Everyone</button><button type="button" data-v="female">Sister</button><button type="button" data-v="male">Brother</button></div>
-      </div>
-
-      <div class="step"><div class="label">❤️ What are you interested in?</div>
-        <div class="chips" id="sh-int" style="margin-top:8px">${MH_DATA.interests.map(i => `<button type="button" class="chip gold" data-v="${i.id}">${i.icon} ${i.t}</button>`).join("")}</div>
-      </div>
-
-      ${welcome ? "" : `<div class="step"><div class="label">⚙︎ More</div>
-        <div class="row" style="margin-top:8px">
-          <div class="field"><label for="sh-clock">Clock</label><select id="sh-clock"><option value="12">12-hour (5:30 PM)</option><option value="24">24-hour (17:30)</option></select></div>
-          <div class="field"><label for="sh-hadj">Hijri date adjustment</label><select id="sh-hadj">${[-2, -1, 0, 1, 2].map(v => `<option value="${v}">${v > 0 ? "+" + v : v} day${Math.abs(v) === 1 ? "" : "s"}</option>`).join("")}</select></div>
-        </div></div>`}
-
-      <div class="actions">
-        <button class="btn ghost" type="button" id="sh-cancel">${welcome ? "Skip for now" : "Cancel"}</button>
-        <button class="btn" type="button" id="sh-save">${welcome ? "Done" : "Save"}</button>
-      </div>
-    </div>`;
+    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-title"></div>`;
     document.body.appendChild(bd);
-    const $ = s => bd.querySelector(s);
+    const sheet = bd.querySelector(".sheet");
+    const $ = s => sheet.querySelector(s);
+    const lastFocus = document.activeElement;
 
-    const syncSeg = (sel, val) => bd.querySelectorAll(sel + " button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === val));
-    const syncChips = () => {
-      bd.querySelectorAll("#sh-age .chip").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === draft.age));
-      bd.querySelectorAll("#sh-int .chip").forEach(b => b.setAttribute("aria-pressed", draft.interests.includes(b.dataset.v)));
-    };
-    syncSeg("#sh-asr", draft.asr); syncSeg("#sh-gender", draft.gender); syncChips();
-    $("#sh-method").value = draft.method;
-    if ($("#sh-clock")) { $("#sh-clock").value = draft.clock; $("#sh-hadj").value = String(draft.hijriAdj); }
+    const choice = (val, on, title, desc, ic) => `<button type="button" class="choice" data-v="${val}" aria-pressed="${on}">
+      ${ic ? `<span class="c-ic">${icon(ic)}</span>` : ""}<span><span class="c-t">${title}</span>${desc ? `<span class="c-d">${desc}</span>` : ""}</span>
+      <span class="c-check">${icon("check")}</span></button>`;
 
-    bd.querySelectorAll("#sh-asr button").forEach(b => b.onclick = () => { draft.asr = b.dataset.v; syncSeg("#sh-asr", draft.asr); });
-    bd.querySelectorAll("#sh-gender button").forEach(b => b.onclick = () => { draft.gender = b.dataset.v; syncSeg("#sh-gender", draft.gender); });
-    bd.querySelectorAll("#sh-age .chip").forEach(b => b.onclick = () => { draft.age = draft.age === b.dataset.v ? null : b.dataset.v; syncChips(); });
-    bd.querySelectorAll("#sh-int .chip").forEach(b => b.onclick = () => {
-      const v = b.dataset.v; draft.interests = draft.interests.includes(v) ? draft.interests.filter(x => x !== v) : draft.interests.concat(v); syncChips();
-    });
-    const setLoc = loc => { draft.loc = loc; $("#sh-locname").textContent = loc.name; $("#sh-results").innerHTML = ""; };
-    $("#sh-gps").onclick = async e => {
-      const b = e.currentTarget; b.disabled = true; b.textContent = "Finding you…";
-      try { setLoc(await locate()); } catch (err) { toast(err.message); }
-      b.disabled = false; b.textContent = "Use my location";
+    const VIEWS = {
+      loc: () => `
+        <h2 id="sh-title">Where do you pray?</h2>
+        <p class="intro">This sets your prayer times and shows the mosques closest to you.</p>
+        <div class="loc-now" id="sh-locnow">${icon("pin")}<span>Prayer times for <strong id="sh-locname">${esc(draft.loc.name)}</strong></span></div>
+        <button class="btn block" type="button" id="sh-gps" style="margin-top:16px">${icon("locate")} Find me automatically</button>
+        <p class="hint" style="margin:8px 0 0;text-align:center">Your browser will ask to share your location. Tap <strong>Allow</strong>.</p>
+        <div class="or">or type it in</div>
+        <div class="search-box">${icon("search")}<input type="search" id="sh-q" placeholder="City or zip code, like Princeton or 08550" aria-label="Type your city or zip code" autocomplete="off" enterkeyhint="search"></div>
+        <p class="hint" id="sh-status" aria-live="polite" style="margin:8px 2px 0;min-height:1.2em"></p>
+        <div class="results" id="sh-results"></div>`,
+      school: () => `
+        <h2 id="sh-title">Which school of thought do you follow?</h2>
+        <p class="intro">This only changes the time for Asr prayer.</p>
+        <div class="choices" id="sh-asr">
+          ${choice("hanafi", draft.asr === "hanafi", "Hanafi", "Asr starts later. Most common among Muslims from South Asia, Turkey, and Central Asia.", "book")}
+          ${choice("standard", draft.asr === "standard", "Shafi'i, Maliki, or Hanbali", "Asr starts earlier. Common in the Arab world, Africa, and Southeast Asia.", "book")}
+        </div>
+        <p class="hint" style="margin:12px 2px 0">Not sure? Keep Hanafi, or ask your mosque. You can change this any time.</p>
+        <details class="more"><summary>More options for Fajr and Isha</summary>
+          <label class="label" for="sh-method" style="display:block;margin:10px 0 8px">Calculation method</label>
+          <select id="sh-method">${Object.entries(METHODS).map(([k, m]) => `<option value="${k}"${k === draft.method ? " selected" : ""}>${m.t}</option>`).join("")}</select>
+          <p class="hint" style="margin:8px 0 0">Most mosques in the US and Canada use ISNA. Choose Jafari for Shia timings.</p>
+        </details>`,
+      age: () => `
+        <h2 id="sh-title">How old are you?</h2>
+        <p class="intro">So we can show you events made for your age.</p>
+        <div class="choices two" id="sh-age">${MH_DATA.ageGroups.map(a => choice(a.id, draft.age === a.id, a.t, a.d)).join("")}</div>
+        <div class="label" style="margin:20px 0 8px">Show me events for</div>
+        <div class="seg" id="sh-gender"><button type="button" data-v="any">Everyone</button><button type="button" data-v="female">Sisters</button><button type="button" data-v="male">Brothers</button></div>`,
+      interests: () => `
+        <h2 id="sh-title">What do you enjoy?</h2>
+        <p class="intro">Pick as many as you like. We'll show these events first. You can skip this.</p>
+        <div class="chips" id="sh-int">${MH_DATA.interests.map(x => `<button type="button" class="chip gold" data-v="${x.id}" aria-pressed="${draft.interests.includes(x.id)}">${icon(x.icon)} ${x.t}</button>`).join("")}</div>`,
+      display: () => `
+        <h2 id="sh-title">Look and feel</h2>
+        <p class="intro">Make MasjidHub comfortable to read.</p>
+        <div class="label" style="margin-bottom:8px">Light or dark</div>
+        <div class="choices" id="sh-theme">
+          ${choice("auto", draft.theme === "auto", "Automatic", "Matches your phone or computer, and switches by itself.", "auto")}
+          ${choice("light", draft.theme === "light", "Always light", "", "sun")}
+          ${choice("dark", draft.theme === "dark", "Always dark", "", "moon")}
+        </div>
+        <div class="label" style="margin:20px 0 8px">Text size</div>
+        <div class="seg" id="sh-text"><button type="button" data-v="md">Normal</button><button type="button" data-v="lg">Large</button><button type="button" data-v="xl">Extra large</button></div>
+        <details class="more"><summary>More options</summary>
+          <div class="row" style="margin-top:10px">
+            <div class="field"><label for="sh-clock">Clock</label><select id="sh-clock"><option value="12">12-hour (5:30 PM)</option><option value="24">24-hour (17:30)</option></select></div>
+            <div class="field"><label for="sh-hadj">Hijri date</label><select id="sh-hadj">${[-2, -1, 0, 1, 2].map(v => `<option value="${v}">${v === 0 ? "No change" : (v > 0 ? "+" : "") + v + " day" + (Math.abs(v) === 1 ? "" : "s")}</option>`).join("")}</select></div>
+          </div>
+          <p class="hint" style="margin:0">Change the Hijri date if your mosque's moon sighting is a day different.</p>
+        </details>`
     };
-    $("#sh-search").onsubmit = async e => {
-      e.preventDefault();
-      const q = $("#sh-q").value.trim(); if (!q) return;
-      $("#sh-results").innerHTML = `<span class="small muted">Searching…</span>`;
+
+    function render() {
+      const step = steps[i], last = i === steps.length - 1;
+      sheet.innerHTML = `
+        <div class="steps-bar">
+          <div style="display:flex;align-items:center;gap:12px"><div class="dots" aria-hidden="true">${steps.map((s, n) => `<i class="${n <= i ? "on" : ""}"></i>`).join("")}</div><span class="step-count">Step ${i + 1} of ${steps.length}</span></div>
+          <button type="button" class="sheet-close" id="sh-x" aria-label="${welcome ? "Skip setup" : "Close without saving"}">${icon("close")}</button>
+        </div>
+        ${VIEWS[step]()}
+        <div class="actions">
+          ${i > 0 ? `<button class="btn ghost" type="button" id="sh-back">${icon("back")} Back</button>` : (welcome ? `<button class="link-btn" type="button" id="sh-skip">Skip for now</button>` : "")}
+          <span class="spacer"></span>
+          ${!welcome && !last ? `<button class="btn ghost" type="button" id="sh-save2">Save</button>` : ""}
+          <button class="btn" type="button" id="sh-next">${last ? `${icon("check")} ${welcome ? "Done" : "Save"}` : `Next ${icon("arrow")}`}</button>
+        </div>`;
+      wire(step);
+      const focusEl = $("#sh-next");
+      if (focusEl) setTimeout(() => focusEl.focus({ preventScroll: true }), 30);
+      sheet.scrollTop = 0;
+    }
+
+    function pressGroup(sel, val) { sheet.querySelectorAll(sel + " [data-v]").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === String(val))); }
+
+    function setLoc(loc) {
+      draft.loc = loc;
+      $("#sh-locname").textContent = loc.name;
+      const n = $("#sh-locnow"); n.classList.remove("flash"); void n.offsetWidth; n.classList.add("flash");
+      $("#sh-results").innerHTML = "";
+      $("#sh-q").value = "";
+      $("#sh-status").innerHTML = `<strong style="color:var(--accent)">Done.</strong> Prayer times are now for ${esc(loc.name)}.`;
+    }
+
+    async function runSearch(q) {
+      const token = ++searchToken;
+      $("#sh-status").textContent = "Searching…";
       try {
         const res = await searchPlace(q);
-        $("#sh-results").innerHTML = res.length ? "" : `<span class="small muted">No places found. Try adding the state or country.</span>`;
-        res.forEach(r => {
-          const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = r.name; c.title = r.full;
-          c.onclick = () => setLoc({ lat: r.lat, lng: r.lng, name: r.name, source: "search" });
-          $("#sh-results").appendChild(c);
+        if (token !== searchToken || !sheet.isConnected || !$("#sh-results")) return;
+        $("#sh-status").textContent = res.length ? "Tap your place:" : "We couldn't find that place. Try adding the state or country, like “Princeton NJ”.";
+        $("#sh-results").innerHTML = res.map((r, n) => `<button type="button" class="result" data-n="${n}">${icon("pin")}<span><span class="r-t">${esc(r.name)}</span><span class="r-d">${esc(r.full)}</span></span></button>`).join("");
+        sheet.querySelectorAll(".result").forEach(b => b.onclick = () => { const r = res[+b.dataset.n]; setLoc({ lat: r.lat, lng: r.lng, name: r.name, source: "search" }); });
+      } catch (e) {
+        if (token === searchToken && $("#sh-status")) $("#sh-status").textContent = "Search isn't working right now. Please try “Find me automatically”.";
+      }
+    }
+
+    function wire(step) {
+      if (step === "loc") {
+        $("#sh-gps").onclick = async e => {
+          const b = e.currentTarget; b.disabled = true; b.innerHTML = `${icon("locate")} Finding you…`;
+          try { setLoc(await locate()); } catch (err) { $("#sh-status").textContent = err.message; }
+          b.disabled = false; b.innerHTML = `${icon("locate")} Find me automatically`;
+        };
+        $("#sh-q").oninput = e => {
+          clearTimeout(searchTimer);
+          const q = e.target.value.trim();
+          if (q.length < 2) { $("#sh-results").innerHTML = ""; $("#sh-status").textContent = ""; return; }
+          searchTimer = setTimeout(() => runSearch(q), 450);
+        };
+        $("#sh-q").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchTimer); const q = e.target.value.trim(); if (q) runSearch(q); } };
+      }
+      if (step === "school") {
+        sheet.querySelectorAll("#sh-asr .choice").forEach(b => b.onclick = () => { draft.asr = b.dataset.v; pressGroup("#sh-asr", draft.asr); });
+        $("#sh-method").onchange = e => { draft.method = e.target.value; };
+      }
+      if (step === "age") {
+        pressGroup("#sh-gender", draft.gender);
+        sheet.querySelectorAll("#sh-age .choice").forEach(b => b.onclick = () => { draft.age = draft.age === b.dataset.v ? null : b.dataset.v; pressGroup("#sh-age", draft.age); });
+        sheet.querySelectorAll("#sh-gender [data-v]").forEach(b => b.onclick = () => { draft.gender = b.dataset.v; pressGroup("#sh-gender", draft.gender); });
+      }
+      if (step === "interests") {
+        sheet.querySelectorAll("#sh-int .chip").forEach(b => b.onclick = () => {
+          const v = b.dataset.v;
+          draft.interests = draft.interests.includes(v) ? draft.interests.filter(x => x !== v) : draft.interests.concat(v);
+          b.setAttribute("aria-pressed", draft.interests.includes(v));
         });
-      } catch (err) { $("#sh-results").innerHTML = `<span class="small muted">Search is unavailable right now.</span>`; }
-    };
-    const close = () => { bd.remove(); document.removeEventListener("keydown", onKey); };
-    const onKey = e => { if (e.key === "Escape") { if (welcome) setPrefs({ onboarded: true }); close(); } };
+      }
+      if (step === "display") {
+        pressGroup("#sh-text", draft.text);
+        $("#sh-clock").value = draft.clock; $("#sh-hadj").value = String(draft.hijriAdj);
+        sheet.querySelectorAll("#sh-theme .choice").forEach(b => b.onclick = () => { draft.theme = b.dataset.v; pressGroup("#sh-theme", draft.theme); });
+        sheet.querySelectorAll("#sh-text [data-v]").forEach(b => b.onclick = () => { draft.text = b.dataset.v; pressGroup("#sh-text", draft.text); });
+        $("#sh-clock").onchange = e => { draft.clock = e.target.value; };
+        $("#sh-hadj").onchange = e => { draft.hijriAdj = parseInt(e.target.value, 10); };
+      }
+      $("#sh-x").onclick = cancel;
+      if ($("#sh-skip")) $("#sh-skip").onclick = cancel;
+      if ($("#sh-back")) $("#sh-back").onclick = () => { i--; render(); };
+      if ($("#sh-save2")) $("#sh-save2").onclick = save;
+      $("#sh-next").onclick = () => { if (i < steps.length - 1) { i++; render(); } else save(); };
+    }
+
+    function close() { bd.remove(); document.removeEventListener("keydown", onKey); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+    function cancel() { if (welcome) setPrefs({ onboarded: true }); close(); }
+    function save() {
+      setPrefs({ loc: draft.loc, asr: draft.asr, method: draft.method, age: draft.age, gender: draft.gender, interests: draft.interests,
+        theme: draft.theme, text: draft.text, clock: draft.clock, hijriAdj: draft.hijriAdj, onboarded: true });
+      close();
+      toast(welcome ? "All set. MasjidHub is now personalized for you." : "Saved");
+    }
+    const onKey = e => { if (e.key === "Escape") cancel(); };
     document.addEventListener("keydown", onKey);
-    $("#sh-cancel").onclick = () => { if (welcome) setPrefs({ onboarded: true }); close(); };
-    bd.addEventListener("click", e => { if (e.target === bd) { if (welcome) setPrefs({ onboarded: true }); close(); } });
-    $("#sh-save").onclick = () => {
-      const patch = { loc: draft.loc, asr: draft.asr, method: $("#sh-method").value, age: draft.age, gender: draft.gender, interests: draft.interests, onboarded: true };
-      if ($("#sh-clock")) { patch.clock = $("#sh-clock").value; patch.hijriAdj = parseInt($("#sh-hadj").value, 10); }
-      setPrefs(patch); close(); toast("Saved. Everything is now personalized for you.");
-    };
-    setTimeout(() => $("#sh-save").focus(), 50);
+    bd.addEventListener("click", e => { if (e.target === bd) cancel(); });
+    render();
   }
 
   /* ---------------- Public API ---------------- */
@@ -528,7 +664,7 @@
     fmtTime, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
     occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, download,
-    openSettings, toast, ICON, LOGO
+    openSettings, toast, icon, LOGO
   };
 
   document.addEventListener("DOMContentLoaded", renderChrome);

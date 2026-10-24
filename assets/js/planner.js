@@ -93,7 +93,7 @@
       if (!label) label = "Busy";
 
       if (start == null && !after && !before && meal) {
-        if (meal === "dinner") { start = minsOf(t.maghrib) + 15; dur = dur || 45; notes.push("Dinner placed right after Maghrib."); }
+        if (meal === "dinner") { start = minsOf(t.maghrib) + 15; dur = dur || 45; notes.push({ ic: "info", t: "Dinner placed right after Maghrib." }); }
         if (meal === "lunch") { start = 12 * 60; dur = dur || 30; }
         if (meal === "breakfast") { start = 7 * 60 + 15; dur = dur || 30; }
       }
@@ -122,7 +122,7 @@
       if (b.end == null) b.end = b.start + (b.dur || 60);
       return true;
     }).map(b => ({ label: b.label, start: hhmm(day, b.start), end: hhmm(day, b.end), kind: "busy", raw: b.raw }));
-    if (unplaced.length) notes.push(`I couldn't find a time for: “${unplaced.join("”, “")}”. Try adding a time, like “at 4pm”.`);
+    if (unplaced.length) notes.push({ ic: "info", t: `I couldn't find a time for: “${unplaced.join("”, “")}”. Try adding a time, like “at 4pm”.` });
     return { blocks: out.sort((a, b) => a.start - b.start), wake: wake != null ? hhmm(day, wake) : null, sleep: sleep != null ? hhmm(day, sleep) : null, notes };
   }
 
@@ -166,14 +166,14 @@
         const before = busy.filter(b => b.end <= placed.start && b.end > w.start).pop();
         items.push({ kind: "prayer", label: w.t, start: placed.start, end: placed.end,
           why: delayed > 2 ? `Right after ${before ? before.label.toLowerCase() : "your last activity"}. You have until ${w.endLabel} (${MH.fmtTime(w.end)}).` : `At the adhan, ${MH.fmtTime(w.start)}. Window ends at ${w.endLabel}.` });
-        if (w.id === "fajr" && parsed.wake && parsed.wake > w.start) notes.push(`You wake at ${MH.fmtTime(parsed.wake)}, but Fajr ends at sunrise (${MH.fmtTime(t.sunrise)}). Set an alarm for ${MH.fmtTime(w.start)}, then you can rest again.`);
-        if (w.id === "isha" && parsed.sleep && placed.start > parsed.sleep) notes.push(`Pray Isha before bed. It starts at ${MH.fmtTime(w.start)}.`);
+        if (w.id === "fajr" && parsed.wake && parsed.wake > w.start) notes.push({ ic: "alert", t: `You wake at ${MH.fmtTime(parsed.wake)}, but Fajr ends at sunrise (${MH.fmtTime(t.sunrise)}). Set an alarm for ${MH.fmtTime(w.start)}, then you can rest again.` });
+        if (w.id === "isha" && parsed.sleep && placed.start > parsed.sleep) notes.push({ ic: "info", t: `Pray Isha before bed. It starts at ${MH.fmtTime(w.start)}.` });
       } else {
         const cover = busy.find(b => overlaps(b, { start: w.start, end: w.end })) || busy[0];
         const mid = new Date(Math.max(w.start, cover.start));
         items.push({ kind: "prayer", conflict: true, label: w.t, start: mid, end: new Date(mid.getTime() + 10 * M),
           why: `${cover.label} covers the whole ${w.t} window (${MH.fmtTime(w.start)}–${MH.fmtTime(w.end)}). Ask for a 10-minute break, and look for a quiet room or a clean spot.` });
-        notes.push(`⚠️ ${w.t} overlaps ${cover.label.toLowerCase()} the whole time. Plan a short break.`);
+        notes.push({ ic: "alert", t: `${w.t} overlaps ${cover.label.toLowerCase()} the whole time. Plan a short break.` });
       }
     });
 
@@ -203,13 +203,13 @@
     picked.forEach(e => items.push({ kind: "event", label: e.title, start: e.start, end: e.end, why: e.why, key: e.key, place: e.place }));
 
     items.sort((a, b) => a.start - b.start || (a.kind === "prayer" ? -1 : 1));
-    if (parsed.sleep) items.push({ kind: "free", label: "Sleep 😴", start: parsed.sleep, end: parsed.sleep, why: "Rest well. The Prophet ﷺ disliked sleeping before Isha and talking late after it (Sahih al-Bukhari 568)." });
+    if (parsed.sleep) items.push({ kind: "free", label: "Sleep", start: parsed.sleep, end: parsed.sleep, why: "Rest well. The Prophet ﷺ disliked sleeping before Isha and talking late after it (Sahih al-Bukhari 568)." });
 
     const summary = [];
-    summary.push(fit === 5 ? "✅ All five prayers fit into your day." : `🕌 ${fit} of 5 prayers fit on their own. See the notes for the rest.`);
-    if (day.getDay() === 5) summary.push("🕌 It's Friday. Jumu'ah replaces Dhuhr, so I set aside 50 minutes for the khutbah and prayer.");
-    if (picked.length) summary.push(`✨ I found ${picked.length} event${picked.length > 1 ? "s" : ""} that fit your free time${MH.prefs.age || MH.prefs.interests.length ? " and your profile" : ""}.`);
-    else summary.push(MH.prefs.age || MH.prefs.interests.length ? "No events fit your free time today. Try another day." : "Tip: set your age and interests (⚙︎) so I can suggest events.");
+    summary.push(fit === 5 ? { ic: "check", t: "All five prayers fit into your day." } : { ic: "alert", t: `${fit} of 5 prayers fit on their own. See the notes below.` });
+    if (day.getDay() === 5) summary.push({ ic: "mosque", t: "It's Friday. Jumu'ah replaces Dhuhr, so I set aside 50 minutes for the khutbah and prayer." });
+    if (picked.length) summary.push({ ic: "sparkle", t: `I found ${picked.length} event${picked.length > 1 ? "s" : ""} that fit your free time${MH.prefs.age || MH.prefs.interests.length ? " and your profile" : ""}.` });
+    else summary.push({ ic: "info", t: MH.prefs.age || MH.prefs.interests.length ? "No events fit your free time today. Try another day." : "Tip: tap Personalize to add your age and interests, and I'll suggest events." });
     return { items, notes: summary.concat(notes), times: t };
   }
 

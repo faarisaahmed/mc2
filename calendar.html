@@ -6,9 +6,11 @@
 <title>Islamic Calendar · MasjidHub</title>
 <meta name="description" content="Hijri and Gregorian dates side by side, with Islamic holidays, sunnah fasts, and mosque events.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
@@ -24,7 +26,7 @@
     <div class="wrap two-col cal-layout">
       <div>
         <div class="cal" id="cal" role="grid" aria-label="Calendar"></div>
-        <p class="small muted" style="margin-top:12px"><span class="pill gold">Holiday</span> Islamic dates follow the Umm al-Qura calendar. Your mosque's moon sighting may differ by a day. You can adjust this in ⚙︎ Settings.</p>
+        <p class="small muted" style="margin-top:12px"><span class="pill gold">Holiday</span> Islamic dates follow the Umm al-Qura calendar. Your mosque's moon sighting may differ by a day. You can adjust this in Settings.</p>
       </div>
       <div style="display:grid;gap:20px;align-content:start">
         <div class="panel" id="detail" aria-live="polite"></div>
@@ -95,9 +97,9 @@
     $("detail").innerHTML = `
       <p class="eyebrow" style="margin:0">${d.toLocaleDateString([], { weekday: "long" })}</p>
       <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</h3>
-      <p style="margin:2px 0 0;color:var(--green);font-weight:600">${h.day} ${h.name} ${h.year} AH <span class="arabic" style="color:var(--gold);font-weight:400">${h.ar}</span></p>
+      <p style="margin:2px 0 0;color:var(--accent);font-weight:600">${h.day} ${h.name} ${h.year} AH <span class="arabic" style="color:var(--gold);font-weight:400">${h.ar}</span></p>
       ${hd ? `<div class="notice" style="margin-top:12px"><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</div>` : ""}
-      ${f ? `<div class="notice ${f.no ? "" : "green"}" style="margin-top:10px">🍽️ ${MH.esc(f.t)}</div>` : ""}
+      ${f ? `<div class="notice ${f.no ? "danger" : "green"}" style="margin-top:10px">${MH.icon(f.no ? "alert" : "moon")}<span>${MH.esc(f.t)}</span></div>` : ""}
       <table class="ptable" style="margin-top:8px">${MH.PRAYERS.map(p => `<tr><td style="padding:8px 4px;font-size:1rem">${p.t}</td><td class="t" style="padding:8px 4px;font-size:1rem">${MH.fmtTime(t[p.id])}</td></tr>`).join("")}</table>
       ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html#${e.key}" style="display:block;padding:6px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
   }

@@ -6,9 +6,11 @@
 <title>Muslim Center of Greater Princeton · MasjidHub</title>
 <meta name="description" content="The Muslim Center of Greater Princeton: a mosque, youth center, and community center open to all.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
@@ -65,7 +67,7 @@
     <section class="section">
       <div class="wrap">
         <div class="section-head"><p class="eyebrow">Education</p><h2 class="title">Keep learning.</h2></div>
-        <div class="grid">${m.education.map(x => `<a class="card" href="${x.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><h3 style="color:var(--green)">${e(x.t)} ›</h3><p class="muted">${e(x.d)}</p></a>`).join("")}</div>
+        <div class="grid">${m.education.map(x => `<a class="card" href="${x.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><h3 style="color:var(--accent)">${e(x.t)} ›</h3><p class="muted">${e(x.d)}</p></a>`).join("")}</div>
       </div>
     </section>
 
@@ -80,7 +82,7 @@
       <div class="wrap two-col">
         <div><p class="eyebrow">Visit</p><h2 class="title">Contact &amp; location</h2>
           <p class="lead">${e(m.address)}</p>
-          <p style="font-size:1.1rem;margin:16px 0 0">📞 <a href="tel:${m.phone.replace(/\D/g, "")}">${e(m.phone)}</a></p>
+          <p style="font-size:1.1rem;margin:16px 0 0;display:flex;gap:8px;align-items:center">${MH.icon("phone")}<a href="tel:${m.phone.replace(/\D/g, "")}">${e(m.phone)}</a></p>
           <p style="margin:10px 0 0">${m.social.map(s => `<a href="${s.url}" target="_blank" rel="noopener">${e(s.t)}</a>`).join(" · ")}</p></div>
         <div class="panel">${m.contacts.map(c => `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="small muted">${e(c.t)}</div><a href="mailto:${c.v}">${e(c.v)}</a></div>`).join("")}
           <p class="small muted" style="margin:14px 0 0">© 2018–2026 Muslim Center of Greater Princeton. Not-for-profit organization recognized as tax-exempt under IRS code section 501(c)(3).</p></div>

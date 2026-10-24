@@ -6,13 +6,15 @@
 <title>AI Day Planner · MasjidHub</title>
 <meta name="description" content="Type your schedule and get a day planned around the five prayers and events that suit you.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
-<div class="subnav"><div class="wrap"><h1>AI Day Planner</h1><div class="right"><span class="ai-badge">✦ Demo<span class="hide-sm"> mode · no key needed</span></span></div></div></div>
+<div class="subnav"><div class="wrap"><h1>AI Day Planner</h1><div class="right"><span class="ai-badge"><i data-ic="sparkle"></i> Demo<span class="hide-sm"> mode · no key needed</span></span></div></div></div>
 <main>
   <section class="tile dark" style="padding:48px 22px 52px">
     <p class="eyebrow">Your personal planner</p>
@@ -35,15 +37,15 @@
           </div>
           <div class="field"><span class="label">Or start from an example</span>
             <div class="chips" id="examples">
-              <button type="button" class="chip" data-t="School 8 to 3, basketball 4-5:30, homework after dinner, sleep at 10">🎒 Student</button>
-              <button type="button" class="chip" data-t="Work 9-5pm, gym at 6 for an hour, sleep at 11">💼 Office job</button>
-              <button type="button" class="chip" data-t="Shift 7am to 7pm, sleep at 10:30">🏥 Long shift</button>
-              <button type="button" class="chip" data-t="Drop kids at school 8:15, groceries at 10, pick up kids at 3, dinner, sleep at 10">👨‍👩‍👧 Parent</button>
-              <button type="button" class="chip" data-t="Walk in the morning for an hour, doctor at 11:30, nap 2-3, sleep at 9:30">🧓 Retired</button>
+              <button type="button" class="chip" data-t="School 8 to 3, basketball 4-5:30, homework after dinner, sleep at 10"><i data-ic="grad"></i> Student</button>
+              <button type="button" class="chip" data-t="Work 9-5pm, gym at 6 for an hour, sleep at 11"><i data-ic="briefcase"></i> Office job</button>
+              <button type="button" class="chip" data-t="Shift 7am to 7pm, sleep at 10:30"><i data-ic="clock"></i> Long shift</button>
+              <button type="button" class="chip" data-t="Drop kids at school 8:15, groceries at 10, pick up kids at 3, dinner, sleep at 10"><i data-ic="users"></i> Parent</button>
+              <button type="button" class="chip" data-t="Walk in the morning for an hour, doctor at 11:30, nap 2-3, sleep at 9:30"><i data-ic="sun"></i> Retired</button>
             </div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <button class="btn" type="submit">✦ Plan my day</button>
+            <button class="btn" type="submit"><i data-ic="sparkle"></i> Plan my day</button>
             <button class="btn ghost" type="button" id="profile">Personalize (age &amp; interests)</button>
           </div>
           <p class="small muted" id="who" style="margin:12px 0 0"></p>
@@ -52,7 +54,7 @@
 
       <div class="panel" id="out" aria-live="polite">
         <div class="empty" style="padding:30px 10px">
-          <p style="font-size:2.4rem;margin:0">🗓️</p>
+          <i data-ic="calendar"></i>
           <p style="margin:6px 0 0">Your plan will show up here.</p>
         </div>
       </div>
@@ -91,20 +93,20 @@
     lastPlan = res;
     const slot = i => {
       const cls = i.kind === "prayer" ? "prayer" : i.kind === "event" ? "event" : i.kind === "free" ? "free" : "";
-      const icon = i.kind === "prayer" ? (i.conflict ? "⚠️ " : "🕌 ") : i.kind === "event" ? "✨ " : "";
+      const icon = i.kind === "prayer" ? MH.icon(i.conflict ? "alert" : "mosque") : i.kind === "event" ? MH.icon("sparkle") : "";
       const time = i.kind === "free" ? MH.fmtTime(i.start) : MH.fmtTime(i.start);
-      return `<div class="slot ${cls}"${i.conflict ? ' style="background:#7a2e22;border-color:#7a2e22"' : ""}><span class="tm">${time}</span>
+      return `<div class="slot ${cls}${i.conflict ? " conflict" : ""}"><span class="tm">${time}</span>
         <div class="ttl">${icon}${MH.esc(i.label)}${i.kind !== "free" && i.kind !== "prayer" ? ` <span class="small" style="font-weight:400;opacity:.75">until ${MH.fmtTime(i.end)}</span>` : ""}</div>
         ${i.why ? `<div class="why">${MH.esc(i.why)}</div>` : ""}
-        ${i.kind === "event" ? `<div class="why">📍 ${MH.esc(i.place || "")}</div>` : ""}</div>`;
+        ${i.kind === "event" ? `<div class="why">${MH.icon("pin")} ${MH.esc(i.place || "")}</div>` : ""}</div>`;
     };
     $("out").innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <h3 style="margin:0;font-size:1.3rem">${MH.fmtDate(day)}</h3><span class="small muted">${MH.fmtHijri(day)}</span></div>
-      <div class="notice green" style="margin-bottom:16px">${res.notes.map(n => `<div style="margin:3px 0">${MH.esc(n)}</div>`).join("")}</div>
+      <div class="plan-notes">${res.notes.map(n => `<div>${MH.icon(n.ic)}<span>${MH.esc(n.t)}</span></div>`).join("")}</div>
       <div class="timeline">${res.items.map(slot).join("")}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
-        <button class="btn sm" id="dl">＋ Add to my calendar</button>
+        <button class="btn sm" id="dl">${MH.icon("plus")} Add to my calendar</button>
         <button class="btn sm ghost" id="copy">Copy as text</button>
       </div>`;
     $("dl").onclick = () => {
@@ -121,7 +123,7 @@
     const text = $("text").value.trim(), day = MH.parseYmd($("day").value);
     if (!text) { $("text").focus(); MH.toast("Type a little about your day first."); return; }
     MH.store.set("planner-draft", text);
-    $("out").innerHTML = `<div class="empty"><span class="ai-badge">✦ Planner</span><p style="margin:14px 0 6px">Reading your schedule and checking prayer windows</p><span class="thinking"><i></i><i></i><i></i></span></div>`;
+    $("out").innerHTML = `<div class="empty"><span class="ai-badge">${MH.icon("sparkle")} Planner</span><p style="margin:14px 0 6px">Reading your schedule and checking prayer windows</p><span class="thinking"><i></i><i></i><i></i></span></div>`;
     setTimeout(() => render(MHPlanner.plan(text, day, { addKey: params.get("add") }), day), 700);
   }
 

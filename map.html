@@ -6,24 +6,26 @@
 <title>Mosques Near You · MasjidHub</title>
 <meta name="description" content="A live map of mosques around you, with directions and prayer times.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
-<div class="subnav"><div class="wrap"><h1>Mosques Near You</h1><div class="right"><a class="btn sm gold" href="join.html">＋ Add your mosque</a></div></div></div>
+<div class="subnav"><div class="wrap"><h1>Mosques Near You</h1><div class="right"><a class="btn sm gold" href="join.html"><i data-ic="plus"></i> Add your mosque</a></div></div></div>
 <main class="map-layout">
   <aside class="map-side">
     <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button class="btn sm" id="me" style="flex:1">📍 Near me</button>
+      <button class="btn sm" id="me" style="flex:1"><i data-ic="locate"></i> Near me</button>
       <button class="btn sm ghost" id="area" style="flex:1">Search this area</button>
     </div>
     <input type="search" id="filter" placeholder="Filter by name" aria-label="Filter mosques by name" style="margin-bottom:12px">
     <p class="small muted" id="status" aria-live="polite">Loading mosques…</p>
     <div id="list"></div>
-    <p class="small muted" style="margin-top:16px">🟡 Gold pins are on MasjidHub, with events and donations. 🟢 Green pins come from OpenStreetMap. Is your mosque missing? <a href="join.html">Add it</a>.</p>
+    <div class="legend small muted"><span><i style="background:var(--gold)"></i>On MasjidHub, with events and donations</span><span><i style="background:var(--green);border-color:var(--gold)"></i>Other mosques, from OpenStreetMap</span><span>Is your mosque missing? <a href="join.html">Add it</a>.</span></div>
   </aside>
   <div id="map" role="region" aria-label="Map of mosques"></div>
 </main>
@@ -36,7 +38,7 @@
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
   let map, center, meMarker, layer, all = [], activeId = null;
 
-  const icon = cls => L.divIcon({ className: "", html: `<div class="pin ${cls}"><span>☪</span></div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
+  const icon = cls => L.divIcon({ className: "", html: `<div class="pin ${cls}">${MH.icon("mosque")}</div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
 
   function addr(tags) {
     const parts = [[tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" "), tags["addr:city"], tags["addr:state"]].filter(Boolean);
@@ -100,7 +102,7 @@
       m.marker.on("click", () => select(m.id, false));
     });
     $("list").innerHTML = shown.slice(0, 60).map(m => `<button class="mosque-item${m.id === activeId ? " active" : ""}" data-id="${m.id}">
-      <h4>${m.hub ? "⭐ " : ""}${MH.esc(m.name)}</h4>
+      <h4>${m.hub ? MH.icon("star") : ""}${MH.esc(m.name)}</h4>
       <div class="d">${MH.fmtDistance(m.km)}${m.address ? " · " + MH.esc(m.address) : ""}</div>
       ${m.pending ? '<span class="pill gray" style="margin-top:6px">Pending review</span>' : m.hub ? '<span class="pill gold" style="margin-top:6px">Events · Donations</span>' : ""}
     </button>`).join("") || `<p class="muted">No mosques match.</p>`;

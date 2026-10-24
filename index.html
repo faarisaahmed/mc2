@@ -6,9 +6,11 @@
 <title>MasjidHub</title>
 <meta name="description" content="Prayer times, Qibla, events for every age, an AI day planner, and mosques near you, all in one place.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
@@ -18,12 +20,17 @@
 <section class="tile dark hero" aria-labelledby="hero-h">
   <p class="eyebrow" id="hero-date">&nbsp;</p>
   <h1 class="headline" id="hero-h"><span id="next-name">Prayer</span> in <span class="countdown" id="next-count">…</span></h1>
-  <p class="lead"><span id="next-at"></span> · <a href="#" id="hero-loc" style="color:var(--gold-bright)">📍 <span id="loc-name"></span></a></p>
-  <div class="cta-row">
-    <a class="btn gold" href="prayer.html">All prayer times</a>
-    <a class="chev" href="qibla.html">Find the Qibla</a>
-  </div>
+  <p class="lead" id="next-at">&nbsp;</p>
+  <p style="margin:16px 0 0"><button class="loc-link" id="hero-loc" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span id="loc-name"></span><span style="opacity:.75;font-weight:500">· Change</span></button></p>
   <div class="prayer-strip wrap" id="strip" aria-label="Today's prayer times"></div>
+</section>
+
+<!-- QUICK ACTIONS -->
+<section class="section" style="padding:44px 0 52px">
+  <div class="wrap">
+    <h2 class="title center" style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:22px">What would you like to do?</h2>
+    <nav class="quick" id="quick" aria-label="Quick actions"></nav>
+  </div>
 </section>
 
 <!-- AI PLANNER -->
@@ -34,7 +41,7 @@
   <div class="cta-row"><a class="btn" href="planner.html">Plan my day</a><a class="chev" href="planner.html#how">How it works</a></div>
   <div class="art wrap-narrow" aria-hidden="true">
     <div class="panel" style="text-align:left;max-width:560px;margin:0 auto">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px"><span class="ai-badge">✦ Planner</span><span class="small muted">“School 8 to 3, soccer at 4:30, homework after dinner”</span></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap"><span class="ai-badge" id="ai-badge">Planner</span><span class="small muted">“School 8 to 3, soccer at 4:30, homework after dinner”</span></div>
       <div class="timeline" id="mini-plan"></div>
     </div>
   </div>
@@ -42,11 +49,11 @@
 
 <div class="tiles-grid">
   <!-- EVENTS -->
-  <section class="tile gold">
-    <p class="eyebrow" style="color:#7a5d17">Events</p>
+  <section class="tile gold on-gold">
+    <p class="eyebrow">Events</p>
     <h2 class="title">Something for every age.</h2>
     <p class="lead">Sorted for kids, teens, and adults, and by what you love.</p>
-    <div class="cta-row">
+    <div class="cta-row" style="gap:10px">
       <a class="btn sm" href="events.html?age=kids">Kids</a>
       <a class="btn sm" href="events.html?age=teens">Teens</a>
       <a class="btn sm" href="events.html?age=adults">Adults</a>
@@ -61,7 +68,7 @@
     <p class="lead" id="qibla-lead">&nbsp;</p>
     <div class="cta-row"><a class="btn gold" href="qibla.html">Open compass</a></div>
     <div class="art" style="max-width:240px;padding-bottom:40px">
-      <svg viewBox="0 0 200 200" id="mini-compass" aria-hidden="true">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
         <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2"/>
         <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="18"/>
         <text x="100" y="28" fill="#e2c174" font-size="14" text-anchor="middle" font-weight="700">N</text>
@@ -78,7 +85,7 @@
     <p class="lead">A live map of mosques around you, with directions and today's times.</p>
     <div class="cta-row"><a class="btn" href="map.html">Open the map</a><a class="chev" href="join.html">Add your mosque</a></div>
     <div class="art" aria-hidden="true" style="max-width:420px;padding-bottom:40px">
-      <svg viewBox="0 0 420 220"><rect width="420" height="220" rx="22" fill="#e8ecdf"/><path d="M0 150 C80 120 140 190 230 150 S360 90 420 120" stroke="#fff" stroke-width="14" fill="none"/><path d="M120 0 L170 220" stroke="#fff" stroke-width="10"/><path d="M300 0 C280 80 330 140 300 220" stroke="#fff" stroke-width="8" fill="none"/><circle cx="210" cy="118" r="9" fill="#2a7de1" stroke="#fff" stroke-width="4"/>
+      <svg viewBox="0 0 420 220"><rect width="420" height="220" rx="22" fill="var(--card)" stroke="var(--line)"/><path d="M0 150 C80 120 140 190 230 150 S360 90 420 120" stroke="var(--line)" stroke-width="14" fill="none"/><path d="M120 0 L170 220" stroke="var(--line)" stroke-width="10"/><path d="M300 0 C280 80 330 140 300 220" stroke="var(--line)" stroke-width="8" fill="none"/><circle cx="210" cy="118" r="9" fill="#2a7de1" stroke="#fff" stroke-width="4"/>
         <g transform="translate(150 70)"><path d="M0 0a14 14 0 0 1 14 14c0 10-14 24-14 24S-14 24-14 14A14 14 0 0 1 0 0z" fill="#0f5132" stroke="#c8a24a" stroke-width="3"/></g>
         <g transform="translate(290 60)"><path d="M0 0a14 14 0 0 1 14 14c0 10-14 24-14 24S-14 24-14 14A14 14 0 0 1 0 0z" fill="#c8a24a" stroke="#0f5132" stroke-width="3"/></g>
         <g transform="translate(250 150)"><path d="M0 0a14 14 0 0 1 14 14c0 10-14 24-14 24S-14 24-14 14A14 14 0 0 1 0 0z" fill="#0f5132" stroke="#c8a24a" stroke-width="3"/></g></svg>
@@ -99,21 +106,21 @@
   <section class="tile dark">
     <p class="eyebrow">Community</p>
     <h2 class="title">Talk to your community.</h2>
-    <p class="lead">Ask the imam, plan a carpool, or share a reminder, in spaces for youth, sisters, and everyone.</p>
+    <p class="lead">Ask a question, plan a carpool, or share a reminder, in spaces for youth, sisters, and everyone.</p>
     <div class="cta-row"><a class="btn gold" href="community.html">Join the conversation</a></div>
     <div class="art" style="max-width:380px;text-align:left;display:grid;gap:8px;padding-bottom:40px" aria-hidden="true">
-      <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:16px 16px 16px 4px;width:85%">Is there a carpool to Family Fun Night from Plainsboro? 🚗</div>
-      <div style="background:var(--gold);color:var(--green-ink);padding:10px 14px;border-radius:16px 16px 4px 16px;width:70%;justify-self:end">I can take 3 people, leaving 3:30!</div>
+      <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:16px 16px 16px 4px;width:85%">Is anyone driving to Family Fun Night from Plainsboro?</div>
+      <div style="background:var(--gold);color:var(--green-ink);padding:10px 14px;border-radius:16px 16px 4px 16px;width:70%;justify-self:end">I can take 3 people, leaving at 3:30.</div>
     </div>
   </section>
 
   <!-- DONATE -->
-  <section class="tile gold">
-    <p class="eyebrow" style="color:#7a5d17">Give</p>
+  <section class="tile gold on-gold">
+    <p class="eyebrow">Give</p>
     <h2 class="title">Sadaqah in seconds.</h2>
     <p class="lead">Support your masjid, Zakat, the Hunger Van, and youth programs.</p>
     <div class="cta-row"><a class="btn" href="donate.html">Donate</a><a class="chev" href="donate.html#zakat">Zakat calculator</a></div>
-    <p class="arabic" style="font-size:1.5rem;margin:28px 0 4px;color:var(--green)">مَّثَلُ ٱلَّذِينَ يُنفِقُونَ أَمْوَٰلَهُمْ فِى سَبِيلِ ٱللَّهِ كَمَثَلِ حَبَّةٍ أَنۢبَتَتْ سَبْعَ سَنَابِلَ</p>
+    <p class="arabic" style="font-size:1.5rem;margin:28px 0 4px;color:var(--accent)">مَّثَلُ ٱلَّذِينَ يُنفِقُونَ أَمْوَٰلَهُمْ فِى سَبِيلِ ٱللَّهِ كَمَثَلِ حَبَّةٍ أَنۢبَتَتْ سَبْعَ سَنَابِلَ</p>
     <p class="small muted" style="max-width:420px;margin:0 auto 40px">“The example of those who spend their wealth in the way of Allah is like a seed which grows seven spikes.” (Al-Baqarah 2:261)</p>
   </section>
 </div>
@@ -124,17 +131,12 @@
     <p class="eyebrow">Why MasjidHub</p>
     <h2 class="title" style="max-width:820px;margin:0 auto">Most mosques don't have an app. So people miss prayers and miss out.</h2>
     <p class="lead" style="max-width:720px;margin:14px auto 0">MasjidHub gives every masjid a beautiful, simple home for its prayer times and events. It also helps each person find what fits their age, school of thought, and schedule, so they can grow closer to Allah and to each other.</p>
-    <div class="grid" style="margin-top:40px;text-align:left">
-      <div class="card"><h3>👵 Easy for every age</h3><p class="muted">Big buttons, plain words, and one-tap larger text. Built for grandparents and grandkids alike.</p></div>
-      <div class="card"><h3>🕌 Your school of thought</h3><p class="muted">Hanafi or Shafi'i Asr, and ISNA, MWL, Umm al-Qura, Jafari, and more for Fajr and Isha.</p></div>
-      <div class="card"><h3>✨ Personal, not generic</h3><p class="muted">Events ranked for you by age and interests, with a planner that fits them around salah.</p></div>
-      <div class="card"><h3>🔒 Private by design</h3><p class="muted">Your settings stay on your device. No account needed.</p></div>
-    </div>
+    <div class="grid" id="why" style="margin-top:40px;text-align:left"></div>
   </div>
 </section>
 
 <!-- FEATURED MOSQUE -->
-<section class="tile dark" style="padding:64px 22px">
+<section class="tile dark" style="padding:64px 20px">
   <p class="eyebrow">Featured mosque</p>
   <h2 class="title">Muslim Center of Greater Princeton</h2>
   <p class="lead">Unity · Compassion · Peace. A mosque, youth center, and community center open to all.</p>
@@ -147,6 +149,22 @@
 <script>
 (function () {
   const $ = id => document.getElementById(id);
+  const QUICK = [
+    ["prayer.html", "clock", "Prayer times"], ["qibla.html", "compass", "Find the Qibla"], ["events.html", "calendar", "Events for me"],
+    ["planner.html", "sparkle", "Plan my day"], ["map.html", "pin", "Mosques near me"], ["donate.html", "heart", "Donate"]
+  ];
+  const WHY = [
+    ["users", "Easy for every age", "Big buttons, plain words, and one-tap larger text. Built for grandparents and grandkids alike."],
+    ["book", "Your school of thought", "Hanafi or Shafi'i Asr, plus ISNA, MWL, Umm al-Qura, Jafari, and more for Fajr and Isha."],
+    ["sparkle", "Personal, not generic", "Events ranked for you by age and interests, with a planner that fits them around salah."],
+    ["lock", "Private by design", "Your settings stay on your device. No account needed."]
+  ];
+
+  function renderStatic() {
+    $("quick").innerHTML = QUICK.map(([h, ic, t]) => `<a href="${h}"><span class="q-ic">${MH.icon(ic)}</span>${t}</a>`).join("");
+    $("why").innerHTML = WHY.map(([ic, t, d]) => `<div class="card"><h3>${MH.icon(ic)}${t}</h3><p class="muted">${d}</p></div>`).join("");
+    $("ai-badge").innerHTML = `${MH.icon("sparkle")} Planner`;
+  }
 
   function renderPrayers() {
     const now = new Date(), t = MH.todayTimes(now), next = MH.nextPrayer(now);
@@ -170,7 +188,7 @@
   }
 
   function renderMiniPlan(t) {
-    const slot = (tm, cls, ttl) => `<div class="slot ${cls}"><span class="tm">${tm}</span><div class="ttl">${ttl}</div></div>`;
+    const slot = (tm, cls, ttl) => `<div class="slot ${cls}"><span class="tm">${tm}</span><div class="ttl">${cls === "prayer" ? MH.icon("mosque") : ""}${ttl}</div></div>`;
     $("mini-plan").innerHTML =
       slot(MH.fmtTime(t.fajr), "prayer", "Fajr") +
       slot("8:00 AM", "", "School") +
@@ -187,10 +205,10 @@
     const seen = new Set(), top = [];
     for (const e of list) { if (!seen.has(e.id)) { seen.add(e.id); top.push(e); } if (top.length === 3) break; }
     top.sort((a, b) => a.start - b.start);
-    $("home-events").innerHTML = top.map(e => `<a class="card" href="events.html#${e.key}" style="display:flex;gap:14px;align-items:center;padding:14px 16px;color:inherit;text-decoration:none">
-      <div class="date-badge" style="flex:none;width:52px;text-align:center;border-radius:12px;background:var(--green);color:#fff;padding:6px 0;line-height:1.1"><div style="font-size:.68rem;color:var(--gold-bright);font-weight:600;text-transform:uppercase">${e.start.toLocaleDateString([], { month: "short" })}</div><div style="font-size:1.3rem;font-weight:700">${e.start.getDate()}</div></div>
-      <div><div style="font-weight:600;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>`).join("")
-      + `<p class="small muted" style="text-align:center;margin:4px 0 0">${MH.prefs.age || MH.prefs.interests.length ? "Picked for you" : "Tip: tap ⚙︎ to personalize"}</p>`;
+    $("home-events").innerHTML = top.map(e => `<a class="card mini-ev" href="events.html#${e.key}">
+      <div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
+      <div><div style="font-weight:700;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>`).join("")
+      + `<p class="small muted center" style="margin:4px 0 0">${MH.prefs.age || MH.prefs.interests.length ? "Picked for you" : "Tip: open Settings to see events picked for you"}</p>`;
   }
 
   function renderCalendar() {
@@ -206,10 +224,10 @@
 
   function renderAll() { renderPrayers(); renderEvents(); renderCalendar(); tick(); }
   document.addEventListener("DOMContentLoaded", () => {
-    renderAll();
+    renderStatic(); renderAll();
     setInterval(tick, 1000);
     MH.onPrefs(renderAll);
-    $("hero-loc").onclick = e => { e.preventDefault(); MH.openSettings(); };
+    $("hero-loc").onclick = () => MH.openSettings({ step: "loc" });
     if (!MH.prefs.onboarded) setTimeout(() => MH.openSettings(true), 700);
   });
 })();

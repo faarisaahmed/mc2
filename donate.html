@@ -6,24 +6,26 @@
 <title>Donate · MasjidHub</title>
 <meta name="description" content="Give sadaqah and zakat to your masjid, with a simple zakat calculator.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
 <div class="subnav"><div class="wrap"><h1>Donate</h1><div class="right"><a class="btn sm ghost" href="#zakat">Zakat calculator</a></div></div></div>
 <main>
-  <section class="tile gold" style="padding:48px 22px 48px">
-    <p class="eyebrow" style="color:#7a5d17">Give</p>
+  <section class="tile gold on-gold" style="padding:48px 20px 48px">
+    <p class="eyebrow">Give</p>
     <h2 class="title">Every gift keeps a masjid's doors open.</h2>
-    <p class="lead" style="color:#6b5a2e">Choose a cause, pick an amount, done.</p>
+    <p class="lead">Choose a cause, pick an amount, done.</p>
   </section>
 
   <section class="section" style="padding-top:36px">
     <div class="wrap two-col">
       <div class="panel">
-        <div class="notice" style="margin-bottom:18px">🧪 <strong>Demo:</strong> no payment is taken on this page. To give for real, use MCGP's <a href="https://themuslimcenter.org/donate" target="_blank" rel="noopener">official donation page</a>.</div>
+        <div class="notice" style="margin-bottom:18px"><i data-ic="flask"></i><span><strong>Demo:</strong> no payment is taken on this page. To give for real, use MCGP's <a href="https://themuslimcenter.org/donate" target="_blank" rel="noopener">official donation page</a>.</span></div>
         <div class="field"><label for="mosque">Mosque</label><select id="mosque"></select></div>
         <span class="label">Cause</span>
         <div id="causes" style="display:grid;gap:10px;margin:8px 0 18px"></div>
@@ -36,7 +38,7 @@
       <div style="display:grid;gap:20px;align-content:start">
         <div class="panel" id="mosque-card"></div>
         <div class="panel"><h3 style="margin:0 0 6px">Why give to your masjid?</h3>
-          <p class="arabic" style="font-size:1.4rem;color:var(--green);margin:8px 0">مَن بَنَى مَسْجِدًا لِلَّهِ بَنَى اللَّهُ لَهُ فِي الْجَنَّةِ مِثْلَهُ</p>
+          <p class="arabic" style="font-size:1.4rem;color:var(--accent);margin:8px 0">مَن بَنَى مَسْجِدًا لِلَّهِ بَنَى اللَّهُ لَهُ فِي الْجَنَّةِ مِثْلَهُ</p>
           <p class="muted small" style="margin:0">“Whoever builds a mosque for Allah, Allah will build for him something like it in Paradise.” (Sahih al-Bukhari 450, Sahih Muslim 533)</p></div>
       </div>
     </div>
@@ -82,7 +84,7 @@
   const money = n => "$" + Math.round(n).toLocaleString();
 
   function render() {
-    $("causes").innerHTML = mosque.causes.map(c => `<label class="card" style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;cursor:pointer;${c.id === cause ? "box-shadow:0 0 0 2px var(--green)" : ""}">
+    $("causes").innerHTML = mosque.causes.map(c => `<label class="card cause${c.id === cause ? " on" : ""}">
       <input type="radio" name="cause" value="${c.id}" ${c.id === cause ? "checked" : ""} style="margin-top:5px;accent-color:var(--green);width:18px;height:18px">
       <span style="flex:1"><strong>${MH.esc(c.t)}</strong><span class="small muted" style="display:block">${MH.esc(c.d)}</span>
       <span class="progress" style="display:block;margin-top:8px" aria-hidden="true"><i style="width:${Math.min(100, c.raised / c.goal * 100)}%"></i></span>
@@ -101,7 +103,7 @@
     const bd = document.createElement("div");
     bd.className = "sheet-backdrop open";
     bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="g-t" style="text-align:center">
-      <p style="font-size:3rem;margin:0">🤲</p>
+      <div style="color:var(--gold)">${MH.icon("heart","ic-lg")}</div>
       <h2 id="g-t">JazakAllahu khayran!</h2>
       <p class="muted">You chose to give <strong>${money(amount)}${{ once: "", monthly: " every month", friday: " every Friday" }[freq]}</strong> to <strong>${MH.esc(c.t)}</strong> at ${MH.esc(mosque.short)}.</p>
       <div class="notice" style="text-align:left">This is a demo, so <strong>no money was charged</strong>. In the full version, this step opens the mosque's secure payment provider. To give right now, use the official page.</div>

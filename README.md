@@ -30,7 +30,7 @@ MasjidHub puts accurate prayer times, the Qibla, events sorted by age and intere
 | Feature | What it does |
 |---|---|
 | **Prayer times** | Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha for any location, with a live countdown to the next prayer, a monthly timetable, printing, and optional adhan notifications. |
-| **School of thought** | Asr for Shafi'i/Maliki/Hanbali (shadow = 1×) or Hanafi (shadow = 2×). Seven calculation methods for Fajr and Isha, including ISNA, MWL, Egypt, Umm al-Qura, Karachi, Tehran, and Shia Ithna-Ashari (Jafari). |
+| **School of thought** | **Hanafi by default** (Asr when shadow = 2×), or Shafi'i/Maliki/Hanbali (shadow = 1×). Seven calculation methods for Fajr and Isha, including ISNA, MWL, Egypt, Umm al-Qura, Karachi, Tehran, and Shia Ithna-Ashari (Jafari). |
 | **Qibla finder** | Great-circle bearing to the Kaaba, plus a live phone compass (iOS and Android) that says "turn left/right" and vibrates when you're facing the Qibla. Also shows the distance to Makkah. |
 | **Events by age & interest** | Adults / Teens / Kids tabs (from the team's sketch), plus Young adults and Seniors. Interest filters, a "Best for me" ranking, search, and `.ics` export to any calendar app. |
 | **AI Day Planner** | Type your day in plain words ("School 8 to 3, soccer at 4:30, homework after dinner, sleep at 10:30"). The planner fits every prayer into its valid time window, flags conflicts, handles Jumu'ah on Fridays, and suggests events that match your age, interests, and free time. |
@@ -39,8 +39,9 @@ MasjidHub puts accurate prayer times, the Qibla, events sorted by age and intere
 | **Add your mosque** | An application form that geocodes the address and puts the mosque on the map as "pending". |
 | **Islamic calendar** | Gregorian and Hijri dates side by side, with Islamic holidays, sunnah-fast guidance (including the days fasting is *not* allowed), prayer times for any day, and mosque events. |
 | **Donations** | Pick a cause and amount, give once, monthly, or every Friday, plus a zakat calculator using the gold or silver nisab. |
-| **Personalization** | A friendly first-visit setup asks for location, school of thought, age group, who you want to see events for, and interests. Change it anytime with ⚙︎. |
-| **Text size** | The **Aa** button cycles normal → large → extra large on every page. |
+| **Personalization** | A first-visit setup asks one simple question per screen (location, school of thought, age, interests) with big tap targets and Back/Next. Location is one big **Find me automatically** button, or type a city or zip and tap the result. Change it anytime under **Settings**. |
+| **Text size** | The **Text size** button cycles normal → large → extra large on every page. |
+| **Light & dark** | Follows the phone or computer automatically, switching when the device does. You can force Light or Dark in Settings. The map dims in dark mode too. |
 
 ## Pages
 
@@ -110,15 +111,15 @@ The team asked for a demo with nothing that needs paid keys, so here's exactly w
 
 | Part | Status |
 |---|---|
-| Prayer times, Hijri dates, Qibla, fasting guidance | ✅ **Real** and verified (see above) |
-| Mosque map | ✅ **Real** mosques from OpenStreetMap (via the free Overpass API) |
-| City search / "use my location" | ✅ **Real** (browser geolocation + OpenStreetMap Nominatim) |
-| MCGP info, services, education, contacts, and the dated events (Oct 24–Nov 6) | ✅ **Real**, taken from [themuslimcenter.org](https://themuslimcenter.org) |
-| Recurring program times | ⚠️ Some are **placeholders**. If the source didn't give a time, the event card says "Sample time. Confirm with the mosque." Programs tied to a prayer (e.g. "after Isha") follow the real prayer time. Edit `assets/js/data.js` when you have real times. |
-| AI Day Planner | 🧪 **Demo engine.** A rule-based planner that runs in the browser with **no API key**. It understands natural phrases and really checks prayer windows, but it isn't a large language model. See the roadmap for connecting a real AI model. |
-| Community chat | 🧪 **Demo.** Messages are saved only in your browser. Sample posts are labelled "sample". The "Ask the Imam" channel does **not** invent answers from any real person. |
-| Donations | 🧪 **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's **real** donation page and PayPal. Fund progress bars are labelled "sample figures". |
-| Add your mosque | 🧪 **Demo.** Applications are saved in your browser and appear on your map as "pending". |
+| Prayer times, Hijri dates, Qibla, fasting guidance | **Real**, verified (see above) |
+| Mosque map | **Real** mosques from OpenStreetMap (via the free Overpass API) |
+| City search / "use my location" | **Real** (browser geolocation + OpenStreetMap Nominatim) |
+| MCGP info, services, education, contacts, and the dated events (Oct 24–Nov 6) | **Real**, taken from [themuslimcenter.org](https://themuslimcenter.org) |
+| Recurring program times | Some are **placeholders**. If the source didn't give a time, the event card says "Sample time. Confirm with the mosque." Programs tied to a prayer (e.g. "after Isha") follow the real prayer time. Edit `assets/js/data.js` when you have real times. |
+| AI Day Planner | **Demo engine.** A rule-based planner that runs in the browser with **no API key**. It understands natural phrases and really checks prayer windows, but it isn't a large language model. See the roadmap for connecting a real AI model. |
+| Community chat | **Demo.** Messages are saved only in your browser. Sample posts are labelled "sample". The "Ask the Imam" channel does **not** invent answers from any real person. |
+| Donations | **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's **real** donation page and PayPal. Fund progress bars are labelled "sample figures". |
+| Add your mosque | **Demo.** Applications are saved in your browser and appear on your map as "pending". |
 
 ---
 
@@ -139,8 +140,9 @@ The team asked for a demo with nothing that needs paid keys, so here's exactly w
 ├── mosque.html           MCGP profile page
 ├── assets/
 │   ├── css/site.css      All styles (design tokens at the top)
-│   ├── js/core.js        Shared engine: settings, prayer math, Hijri, Qibla,
-│   │                     event expansion & ranking, nav/footer, settings sheet
+│   ├── js/boot.js        Applies saved theme/text size before the page paints
+│   ├── js/core.js        Shared engine: settings, prayer math, Hijri, Qibla, icons,
+│   │                     event expansion & ranking, nav/footer, settings wizard
 │   ├── js/data.js        Mosques, events, interests, age groups  ← edit content here
 │   ├── js/planner.js     AI planner engine (schedule parser + prayer placement)
 │   └── img/icon.svg      Logo / favicon
@@ -202,12 +204,17 @@ Mosques, donation causes, services, and contacts are in the same file under `mos
 
 - **Layout like apple.com:** a thin translucent global nav, a sticky product sub-nav on each page, large headline tiles that alternate light and dark, a two-up tile grid on the home page, and an "eyebrow, headline, subhead, then two calls to action" pattern.
 - **Colors:** the masjid's green and gold. Design tokens are at the top of `site.css` (`--green #0f5132`, `--green-deep #0a3622`, `--gold #c8a24a`, and others).
-- **Type:** SF Pro on Apple devices and Inter elsewhere. Arabic text uses Amiri.
+- **Type:** [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans), a warm and very legible sans-serif, for everything. Arabic text and ﷺ use Amiri.
+- **Icons:** one consistent set of simple line icons (in `core.js`). The site uses no emoji, so it looks the same on every device.
+- **Light & dark:** every color is a token on `:root`, redefined for dark mode. `assets/js/boot.js` applies a forced theme before the page draws, so there's no flash.
 - **Team sketch:** the whiteboard sketch had a top bar with *events (adult · teen · kid) · AI · chat place · prayer times*. These are all in the main nav, and Events opens with Adults/Teens/Kids tabs.
 
 ## Accessibility
 
-- One-tap **larger text** (Aa) on every page, saved for next time
+- One-tap **larger text** on every page, saved for next time
+- **Plain, step-by-step setup**: one question per screen, big answers, and Back/Next
+- A **"What would you like to do?"** row of six big buttons on the home page for first-time users
+- **Automatic dark mode**, easier on the eyes at Fajr and Isha
 - Large touch targets (44px+), plain-language labels, and emoji cues for quick scanning
 - Keyboard focus rings, `aria-pressed` on toggles, `aria-live` regions for countdowns and results, and labelled form fields
 - Honors **reduced motion**

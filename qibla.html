@@ -6,13 +6,15 @@
 <title>Qibla Finder · MasjidHub</title>
 <meta name="description" content="Find the direction of the Kaaba from wherever you are.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
-<div class="subnav"><div class="wrap"><h1>Qibla</h1><div class="right"><button class="btn sm ghost" id="gps">📍 Use my location</button></div></div></div>
+<div class="subnav"><div class="wrap"><h1>Qibla</h1><div class="right"><button class="btn sm ghost" id="gps">Find me automatically</button></div></div></div>
 <main>
   <section class="tile dark" style="padding:44px 22px 56px">
     <p class="eyebrow" id="where">&nbsp;</p>
@@ -66,7 +68,7 @@
   function render() {
     const loc = MH.prefs.loc;
     bearing = MH.qiblaBearing(loc.lat, loc.lng);
-    $("where").textContent = `📍 ${loc.name}`;
+    $("where").textContent = `From ${loc.name}`;
     $("kaaba-mark").setAttribute("transform", `rotate(${bearing} 150 150)`);
     $("dist").textContent = `${Math.round(MH.distanceKm(loc, MH.KAABA) * 0.621371).toLocaleString()} mi`;
     update();
@@ -85,7 +87,7 @@
     $("needle").style.transform = `rotate(${rel}deg)`;
     $("deg").textContent = `${bearing.toFixed(0)}°`;
     if (Math.abs(rel) <= 4) {
-      $("hint").innerHTML = `<strong style="color:var(--gold-bright)">You're facing the Qibla ✓</strong>`;
+      $("hint").innerHTML = `<strong style="color:var(--gold-bright)">${MH.icon("check")} You're facing the Qibla</strong>`;
       if (!buzzed && navigator.vibrate) { navigator.vibrate(60); buzzed = true; }
     } else {
       buzzed = false;
@@ -110,7 +112,7 @@
       }
       window.addEventListener("deviceorientationabsolute", onOrient, true);
       window.addEventListener("deviceorientation", onOrient, true);
-      $("live").textContent = "Compass on ✓";
+      $("live").textContent = "Compass is on";
       setTimeout(() => { if (heading == null) MH.toast("No compass found on this device. Use the degrees shown instead."); }, 2500);
     } catch (e) { MH.toast("Compass isn't available here."); }
   }

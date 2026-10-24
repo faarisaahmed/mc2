@@ -66,15 +66,15 @@ window.MH_DATA = {
   ],
 
   interests: [
-    { id: "faith", t: "Quran & Faith", icon: "📖" },
-    { id: "learning", t: "Classes & Learning", icon: "🎓" },
-    { id: "youth", t: "Youth", icon: "⭐" },
-    { id: "sports", t: "Sports & Fitness", icon: "🏀" },
-    { id: "family", t: "Family", icon: "👨‍👩‍👧" },
-    { id: "sisters", t: "Sisters", icon: "🌸" },
-    { id: "service", t: "Service & Charity", icon: "🤝" },
-    { id: "social", t: "Social & Fun", icon: "🎉" },
-    { id: "business", t: "Business & Careers", icon: "💼" }
+    { id: "faith", t: "Quran & Faith", icon: "book" },
+    { id: "learning", t: "Classes & Learning", icon: "grad" },
+    { id: "youth", t: "Youth", icon: "star" },
+    { id: "sports", t: "Sports & Fitness", icon: "ball" },
+    { id: "family", t: "Family", icon: "users" },
+    { id: "sisters", t: "Sisters", icon: "flower" },
+    { id: "service", t: "Service & Charity", icon: "hand" },
+    { id: "social", t: "Social & Fun", icon: "smile" },
+    { id: "business", t: "Business & Careers", icon: "briefcase" }
   ],
 
   ageGroups: [

@@ -6,19 +6,22 @@
 <title>Prayer Times · MasjidHub</title>
 <meta name="description" content="Accurate daily prayer times for your location and school of thought.">
 <meta name="theme-color" content="#0a3622">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
-<div class="subnav"><div class="wrap"><h1>Prayer Times</h1><div class="right"><a class="btn sm ghost" href="qibla.html">Qibla</a><button class="btn sm" id="change">Change settings</button></div></div></div>
+<div class="subnav"><div class="wrap"><h1>Prayer Times</h1><div class="right"><a class="btn sm ghost" href="qibla.html">Qibla</a><button class="btn sm" id="change">Settings</button></div></div></div>
 <main>
   <section class="tile dark" style="padding:48px 22px 52px">
     <p class="eyebrow" id="date-line">&nbsp;</p>
     <h2 class="headline"><span id="nx-name">…</span> <span style="color:var(--gold-bright)" id="nx-time"></span></h2>
     <p class="lead">Starts in <strong class="countdown" id="nx-count" style="color:#fff">…</strong></p>
-    <p class="small" style="color:#c9d8ce;margin-top:16px">📍 <span id="loc"></span> · <span id="method"></span> · Asr: <span id="asr"></span></p>
+    <p style="margin:18px 0 0"><button class="loc-link" id="loc-btn" type="button"><span id="loc-ic"></span><span id="loc"></span><span style="opacity:.75;font-weight:500">· Change</span></button></p>
+    <p class="small" style="color:#c9d8ce;margin-top:12px"><span id="method"></span> · Asr: <span id="asr"></span></p>
   </section>
 
   <section class="section">
@@ -40,13 +43,13 @@
           <h3 style="margin:0 0 4px;font-size:1.2rem">Your school of thought</h3>
           <p class="small muted" style="margin:0 0 12px">Changes the Asr time.</p>
           <div class="seg" id="asr-seg" role="group" aria-label="Asr calculation">
-            <button type="button" data-v="standard">Shafi'i · Maliki · Hanbali</button><button type="button" data-v="hanafi">Hanafi</button>
+            <button type="button" data-v="hanafi">Hanafi</button><button type="button" data-v="standard">Shafi'i · Maliki · Hanbali</button>
           </div>
           <label class="label" for="method-sel" style="display:block;margin:18px 0 8px">Fajr &amp; Isha method</label>
           <select id="method-sel"></select>
         </div>
         <div class="panel">
-          <h3 style="margin:0 0 4px;font-size:1.2rem">🔔 Adhan reminders</h3>
+          <h3 style="margin:0 0 4px;font-size:1.2rem">Adhan reminders</h3>
           <p class="small muted" style="margin:0 0 12px">Get a notification at each prayer time while this page is open.</p>
           <button class="btn sm" id="notify">Turn on reminders</button>
         </div>
@@ -140,6 +143,8 @@
     all(); tick(); setInterval(tick, 1000);
     MH.onPrefs(all);
     $("change").onclick = () => MH.openSettings();
+    $("loc-btn").onclick = () => MH.openSettings({ step: "loc" });
+    $("loc-ic").outerHTML = MH.icon("pin");
     document.querySelectorAll("[data-off]").forEach(b => b.onclick = () => { dayOff = +b.dataset.off; renderDay(); });
     document.querySelectorAll("#asr-seg button").forEach(b => b.onclick = () => { MH.setPrefs({ asr: b.dataset.v }); MH.toast(`Asr: ${b.dataset.v === "hanafi" ? "Hanafi" : "Shafi'i, Maliki, Hanbali"}`); });
     $("method-sel").onchange = e => MH.setPrefs({ method: e.target.value });
@@ -150,7 +155,7 @@
       if (!("Notification" in window)) return MH.toast("This browser doesn't support notifications.");
       const perm = await Notification.requestPermission();
       notifyOn = perm === "granted";
-      e.target.textContent = notifyOn ? "Reminders on ✓" : "Turn on reminders";
+      e.target.textContent = notifyOn ? "Reminders are on" : "Turn on reminders";
       MH.toast(notifyOn ? "You'll be reminded at each prayer while this tab is open." : "Notifications were blocked in your browser settings.");
     };
   });
