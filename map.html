@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mosques Near You · MasjidHub</title>
+<meta name="description" content="A live map of mosques around you, with directions and prayer times.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Mosques Near You</h1><div class="right"><a class="btn sm gold" href="join.html">＋ Add your mosque</a></div></div></div>
+<main class="map-layout">
+  <aside class="map-side">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn sm" id="me" style="flex:1">📍 Near me</button>
+      <button class="btn sm ghost" id="area" style="flex:1">Search this area</button>
+    </div>
+    <input type="search" id="filter" placeholder="Filter by name" aria-label="Filter mosques by name" style="margin-bottom:12px">
+    <p class="small muted" id="status" aria-live="polite">Loading mosques…</p>
+    <div id="list"></div>
+    <p class="small muted" style="margin-top:16px">🟡 Gold pins are on MasjidHub, with events and donations. 🟢 Green pins come from OpenStreetMap. Is your mosque missing? <a href="join.html">Add it</a>.</p>
+  </aside>
+  <div id="map" role="region" aria-label="Map of mosques"></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+  let map, center, meMarker, layer, all = [], activeId = null;
+
+  const icon = cls => L.divIcon({ className: "", html: `<div class="pin ${cls}"><span>☪</span></div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
+
+  function addr(tags) {
+    const parts = [[tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" "), tags["addr:city"], tags["addr:state"]].filter(Boolean);
+    return parts.join(", ");
+  }
+
+  async function fetchOsm(lat, lng, radius) {
+    const q = `[out:json][timeout:25];nwr["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});out center 80;`;
+    for (const url of OVERPASS) {
+      try {
+        const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+        if (!r.ok) continue;
+        const j = await r.json();
+        return j.elements.map(e => {
+          const t = e.tags || {};
+          return { id: `osm-${e.type}-${e.id}`, name: t.name || t["name:en"] || "Mosque (name not listed)", lat: e.lat || e.center.lat, lng: e.lon || e.center.lon,
+            address: addr(t), website: t.website || t["contact:website"] || "", phone: t.phone || t["contact:phone"] || "", osm: true };
+        });
+      } catch (e) { /* try next mirror */ }
+    }
+    throw new Error("Couldn't reach the mosque database. Showing MasjidHub mosques only.");
+  }
+
+  async function load(lat, lng) {
+    center = { lat, lng };
+    $("status").textContent = "Finding mosques…";
+    const hub = MH.allMosques();
+    let osm = [];
+    try { osm = await fetchOsm(lat, lng, 30000); }
+    catch (e) { $("status").textContent = e.message; }
+    // Skip OSM entries that duplicate a MasjidHub mosque.
+    osm = osm.filter(o => !hub.some(h => MH.distanceKm(h, o) < 0.25));
+    all = hub.concat(osm).map(m => Object.assign(m, { km: MH.distanceKm(center, m) })).sort((a, b) => a.km - b.km);
+    draw();
+    const near = all.filter(m => m.km < 30).length;
+    if ($("status").textContent.startsWith("Finding")) $("status").textContent = `${near} mosque${near === 1 ? "" : "s"} within about 20 miles`;
+  }
+
+  function popupHtml(m) {
+    const t = MH.prayerTimes(new Date(), m.lat, m.lng, MH.prefs), next = MH.PRAYERS.filter(p => !p.notPrayer).find(p => t[p.id] > new Date());
+    return `<h4>${MH.esc(m.name)}</h4>
+      ${m.hub ? '<span class="pill gold">On MasjidHub</span> ' : ""}${m.pending ? '<span class="pill gray">Application pending</span>' : ""}
+      <div class="small muted" style="margin:6px 0">${MH.esc(m.address || "")}${m.address ? " · " : ""}${MH.fmtDistance(m.km)} away</div>
+      ${next ? `<div class="small">Next: <strong>${next.t} ${MH.fmtTime(t[next.id])}</strong></div>` : ""}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <a class="btn sm" style="color:#fff" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}">Directions</a>
+        ${m.hub && !m.pending ? `<a class="btn sm ghost" href="mosque.html?id=${m.id}">Visit page</a>` : ""}
+        ${m.website ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${MH.esc(m.website)}">Website</a>` : ""}
+        <button class="btn sm ghost" data-times="${m.id}">Use for times</button>
+      </div>`;
+  }
+
+  function draw() {
+    if (layer) layer.remove();
+    layer = L.layerGroup().addTo(map);
+    const f = $("filter").value.toLowerCase();
+    const shown = all.filter(m => !f || m.name.toLowerCase().includes(f));
+    shown.forEach(m => {
+      m.marker = L.marker([m.lat, m.lng], { icon: icon(m.pending ? "pending" : m.hub ? "hub" : ""), title: m.name, zIndexOffset: m.hub ? 1000 : 0 })
+        .bindPopup(() => popupHtml(m), { maxWidth: 280 }).addTo(layer);
+      m.marker.on("click", () => select(m.id, false));
+    });
+    $("list").innerHTML = shown.slice(0, 60).map(m => `<button class="mosque-item${m.id === activeId ? " active" : ""}" data-id="${m.id}">
+      <h4>${m.hub ? "⭐ " : ""}${MH.esc(m.name)}</h4>
+      <div class="d">${MH.fmtDistance(m.km)}${m.address ? " · " + MH.esc(m.address) : ""}</div>
+      ${m.pending ? '<span class="pill gray" style="margin-top:6px">Pending review</span>' : m.hub ? '<span class="pill gold" style="margin-top:6px">Events · Donations</span>' : ""}
+    </button>`).join("") || `<p class="muted">No mosques match.</p>`;
+  }
+
+  function select(id, fly) {
+    const m = all.find(x => x.id === id); if (!m) return;
+    activeId = id;
+    document.querySelectorAll(".mosque-item").forEach(b => b.classList.toggle("active", b.dataset.id === id));
+    if (fly) { map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 14), { duration: .6 }); setTimeout(() => m.marker.openPopup(), 650); }
+  }
+
+  function setMe(loc) {
+    if (meMarker) meMarker.remove();
+    meMarker = L.marker([loc.lat, loc.lng], { icon: L.divIcon({ className: "", html: '<div class="me-dot"></div>', iconSize: [18, 18] }), title: "You" }).addTo(map);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const p = MH.prefs.loc;
+    map = L.map("map", { zoomControl: true }).setView([p.lat, p.lng], 11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+    setMe(p);
+    load(p.lat, p.lng);
+
+    $("list").addEventListener("click", e => { const b = e.target.closest(".mosque-item"); if (b) select(b.dataset.id, true); });
+    $("filter").oninput = draw;
+    $("area").onclick = () => { const c = map.getCenter(); load(c.lat, c.lng); };
+    $("me").onclick = async () => {
+      try {
+        $("status").textContent = "Finding you…";
+        const loc = await MH.locate();
+        MH.setPrefs({ loc }); setMe(loc); map.setView([loc.lat, loc.lng], 12); load(loc.lat, loc.lng);
+      } catch (e) { $("status").textContent = e.message; }
+    };
+    map.on("popupopen", e => {
+      const b = e.popup.getElement().querySelector("[data-times]");
+      if (b) b.onclick = () => {
+        const m = all.find(x => x.id === b.dataset.times);
+        MH.setPrefs({ loc: { lat: +m.lat.toFixed(4), lng: +m.lng.toFixed(4), name: m.name, source: "mosque" } });
+        MH.toast(`Prayer times now use ${m.name}`);
+      };
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Islamic Calendar · MasjidHub</title>
+<meta name="description" content="Hijri and Gregorian dates side by side, with Islamic holidays, sunnah fasts, and mosque events.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Islamic Calendar</h1><div class="right"><button class="btn sm ghost" id="prev" aria-label="Previous month">‹</button><button class="btn sm ghost" id="today">Today</button><button class="btn sm ghost" id="next" aria-label="Next month">›</button></div></div></div>
+<main>
+  <section class="tile dark" style="padding:40px 22px 44px">
+    <p class="eyebrow" id="greg-month">&nbsp;</p>
+    <h2 class="title" id="hijri-months">&nbsp;</h2>
+    <p class="arabic" id="hijri-ar" style="font-size:1.6rem;color:var(--gold-bright);margin:8px 0 0">&nbsp;</p>
+  </section>
+
+  <section class="section" style="padding-top:32px">
+    <div class="wrap two-col" style="grid-template-columns:1.6fr 1fr">
+      <div>
+        <div class="cal" id="cal" role="grid" aria-label="Calendar"></div>
+        <p class="small muted" style="margin-top:12px"><span class="pill gold">Holiday</span> Islamic dates follow the Umm al-Qura calendar. Your mosque's moon sighting may differ by a day. You can adjust this in ⚙︎ Settings.</p>
+      </div>
+      <div style="display:grid;gap:20px;align-content:start">
+        <div class="panel" id="detail" aria-live="polite"></div>
+        <div class="panel"><h3 style="margin:0 0 10px;font-size:1.2rem">Coming up</h3><div id="upcoming"></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let view = new Date(); view.setDate(1);
+  let selected = new Date();
+  let evByDay = {};
+
+  // Fasting guidance based on well-known rulings.
+  function fasting(d) {
+    const h = MH.hijri(d), dow = d.getDay();
+    if (h.month === 10 && h.day === 1) return { no: true, t: "No fasting: it's Eid al-Fitr." };
+    if (h.month === 12 && h.day === 10) return { no: true, t: "No fasting: it's Eid al-Adha." };
+    if (h.month === 12 && h.day >= 11 && h.day <= 13) return { no: true, t: "No fasting: Days of Tashreeq (11–13 Dhu al-Hijjah)." };
+    if (h.month === 9) return { t: "Ramadan: fasting is obligatory for every adult Muslim who is able." };
+    const out = [];
+    if (h.month === 12 && h.day === 9) out.push("Day of Arafah: a highly recommended fast");
+    if (h.month === 1 && (h.day === 9 || h.day === 10)) out.push("Ashura fast (9th & 10th Muharram)");
+    if (h.month === 10 && h.day >= 2) out.push("Six days of Shawwal can be fasted any time this month");
+    if (h.month === 12 && h.day <= 8) out.push("First ten days of Dhu al-Hijjah are excellent for fasting and good deeds");
+    if (h.day >= 13 && h.day <= 15) out.push("White Days (13–15): sunnah fast");
+    if (dow === 1 || dow === 4) out.push(`${dow === 1 ? "Monday" : "Thursday"}: sunnah fast`);
+    return out.length ? { t: out.join(". ") + "." } : null;
+  }
+
+  function buildEvents() {
+    const from = new Date(view.getFullYear(), view.getMonth() - 1, 20), to = new Date(view.getFullYear(), view.getMonth() + 1, 12);
+    evByDay = {};
+    MH.occurrences(from, to).filter(e => !["fajr-halaqa", "jumuah", "isha-halaqa", "family-friday"].includes(e.id) && MH.fitsAudience(e))
+      .forEach(e => (evByDay[MH.ymd(e.start)] = evByDay[MH.ymd(e.start)] || []).push(e));
+  }
+
+  function renderGrid() {
+    buildEvents();
+    const y = view.getFullYear(), m = view.getMonth(), first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+    const hFirst = MH.hijri(first), hLast = MH.hijri(last);
+    $("greg-month").textContent = first.toLocaleDateString([], { month: "long", year: "numeric" });
+    $("hijri-months").textContent = hFirst.month === hLast.month ? `${hFirst.name} ${hFirst.year}` : `${hFirst.name} – ${hLast.name} ${hLast.year}`;
+    $("hijri-ar").textContent = hFirst.month === hLast.month ? hFirst.ar : `${hFirst.ar} – ${hLast.ar}`;
+
+    const start = new Date(first); start.setDate(1 - first.getDay());
+    const todayKey = MH.ymd(new Date()), selKey = MH.ymd(selected);
+    let html = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<div class="dow" role="columnheader">${d}</div>`).join("");
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      if (i >= 35 && d.getMonth() !== m) break;
+      const h = MH.hijri(d), hd = MH.islamicDay(d), k = MH.ymd(d), evs = evByDay[k] || [];
+      html += `<button class="day${d.getMonth() !== m ? " out" : ""}${k === todayKey ? " today" : ""}${k === selKey ? " sel" : ""}" data-k="${k}" aria-label="${MH.fmtDate(d)}, ${h.day} ${h.name}${hd ? ", " + hd.t : ""}">
+        <span class="g">${d.getDate()}</span><span class="h">${h.day === 1 ? h.name.split(" ")[0] + " " : ""}${h.day}</span>
+        ${hd ? `<span class="hd">${MH.esc(hd.t)}</span>` : ""}
+        ${evs.length ? `<span class="dots">${evs.slice(0, 4).map(() => "<i></i>").join("")}</span>` : ""}
+      </button>`;
+    }
+    $("cal").innerHTML = html;
+  }
+
+  function renderDetail() {
+    const d = selected, h = MH.hijri(d), hd = MH.islamicDay(d), t = MH.todayTimes(d), f = fasting(d), evs = evByDay[MH.ymd(d)] || [];
+    $("detail").innerHTML = `
+      <p class="eyebrow" style="margin:0">${d.toLocaleDateString([], { weekday: "long" })}</p>
+      <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</h3>
+      <p style="margin:2px 0 0;color:var(--green);font-weight:600">${h.day} ${h.name} ${h.year} AH <span class="arabic" style="color:var(--gold);font-weight:400">${h.ar}</span></p>
+      ${hd ? `<div class="notice" style="margin-top:12px"><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</div>` : ""}
+      ${f ? `<div class="notice ${f.no ? "" : "green"}" style="margin-top:10px">🍽️ ${MH.esc(f.t)}</div>` : ""}
+      <table class="ptable" style="margin-top:8px">${MH.PRAYERS.map(p => `<tr><td style="padding:8px 4px;font-size:1rem">${p.t}</td><td class="t" style="padding:8px 4px;font-size:1rem">${MH.fmtTime(t[p.id])}</td></tr>`).join("")}</table>
+      ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html#${e.key}" style="display:block;padding:6px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
+  }
+
+  function renderUpcoming() {
+    const now = new Date(new Date().toDateString());
+    $("upcoming").innerHTML = MH.upcomingIslamicDays(now, 8).map(x => {
+      const days = Math.round((x.date - now) / 86400000);
+      return `<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line)">
+        <div><strong>${MH.esc(x.t)}</strong><div class="small muted">${MH.fmtDate(x.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</div></div>
+        <span class="pill${days < 30 ? " gold" : ""}" style="align-self:center;white-space:nowrap">${days === 0 ? "Today" : days === 1 ? "Tomorrow" : "in " + days + " days"}</span></div>`;
+    }).join("");
+  }
+
+  function all() { renderGrid(); renderDetail(); renderUpcoming(); }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    all(); MH.onPrefs(all);
+    $("cal").addEventListener("click", e => {
+      const b = e.target.closest(".day"); if (!b) return;
+      selected = MH.parseYmd(b.dataset.k);
+      if (selected.getMonth() !== view.getMonth()) { view = new Date(selected.getFullYear(), selected.getMonth(), 1); renderGrid(); }
+      else document.querySelectorAll(".cal .day").forEach(x => x.classList.toggle("sel", x.dataset.k === b.dataset.k));
+      renderDetail();
+    });
+    $("prev").onclick = () => { view.setMonth(view.getMonth() - 1); renderGrid(); };
+    $("next").onclick = () => { view.setMonth(view.getMonth() + 1); renderGrid(); };
+    $("today").onclick = () => { view = new Date(); view.setDate(1); selected = new Date(); all(); };
+  });
+})();
+</script>
+</body>
+</html>

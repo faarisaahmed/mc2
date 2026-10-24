@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Donate · MasjidHub</title>
+<meta name="description" content="Give sadaqah and zakat to your masjid, with a simple zakat calculator.">
+<meta name="theme-color" content="#0a3622">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Donate</h1><div class="right"><a class="btn sm ghost" href="#zakat">Zakat calculator</a></div></div></div>
+<main>
+  <section class="tile gold" style="padding:48px 22px 48px">
+    <p class="eyebrow" style="color:#7a5d17">Give</p>
+    <h2 class="title">Every gift keeps a masjid's doors open.</h2>
+    <p class="lead" style="color:#6b5a2e">Choose a cause, pick an amount, done.</p>
+  </section>
+
+  <section class="section" style="padding-top:36px">
+    <div class="wrap two-col">
+      <div class="panel">
+        <div class="notice" style="margin-bottom:18px">🧪 <strong>Demo:</strong> no payment is taken on this page. To give for real, use MCGP's <a href="https://themuslimcenter.org/donate" target="_blank" rel="noopener">official donation page</a>.</div>
+        <div class="field"><label for="mosque">Mosque</label><select id="mosque"></select></div>
+        <span class="label">Cause</span>
+        <div id="causes" style="display:grid;gap:10px;margin:8px 0 18px"></div>
+        <span class="label">Amount</span>
+        <div class="amounts" id="amounts" style="margin:8px 0 10px"></div>
+        <div class="field"><label for="custom" class="sr-only">Custom amount</label><input type="number" id="custom" min="1" step="1" placeholder="Other amount ($)" inputmode="decimal"></div>
+        <div class="seg" id="freq" role="group" aria-label="How often"><button type="button" data-v="once" aria-pressed="true">One time</button><button type="button" data-v="monthly">Monthly</button><button type="button" data-v="friday">Every Friday</button></div>
+        <button class="btn gold" id="give" style="width:100%;margin-top:20px;min-height:54px;font-size:1.1rem">Give</button>
+      </div>
+      <div style="display:grid;gap:20px;align-content:start">
+        <div class="panel" id="mosque-card"></div>
+        <div class="panel"><h3 style="margin:0 0 6px">Why give to your masjid?</h3>
+          <p class="arabic" style="font-size:1.4rem;color:var(--green);margin:8px 0">مَن بَنَى مَسْجِدًا لِلَّهِ بَنَى اللَّهُ لَهُ فِي الْجَنَّةِ مِثْلَهُ</p>
+          <p class="muted small" style="margin:0">“Whoever builds a mosque for Allah, Allah will build for him something like it in Paradise.” (Sahih al-Bukhari 450, Sahih Muslim 533)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="zakat">
+    <div class="wrap two-col">
+      <div>
+        <p class="eyebrow">Zakat calculator</p>
+        <h2 class="title">How much zakat do I owe?</h2>
+        <p class="lead">Zakat is 2.5% of the wealth you've owned for one lunar year, if it's at or above the nisab.</p>
+        <div class="card" style="margin-top:24px">
+          <h3>About the nisab</h3>
+          <p class="muted">The nisab is the value of <strong>85 grams of gold</strong> or <strong>595 grams of silver</strong>. Many scholars recommend the silver nisab because it is lower, so more zakat reaches the poor. Enter today's price per gram to calculate it. Prices change daily.</p>
+          <p class="small muted">This is a guide. For personal situations (retirement accounts, business stock, debts), ask your imam or a qualified scholar.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <form id="zform">
+          <div class="row">
+            <div class="field"><label for="z-cash">Cash &amp; bank balances</label><input type="number" id="z-cash" min="0" placeholder="$0" inputmode="decimal"></div>
+            <div class="field"><label for="z-gold">Gold &amp; silver (value)</label><input type="number" id="z-gold" min="0" placeholder="$0" inputmode="decimal"></div>
+            <div class="field"><label for="z-inv">Stocks &amp; investments</label><input type="number" id="z-inv" min="0" placeholder="$0" inputmode="decimal"></div>
+            <div class="field"><label for="z-biz">Business goods &amp; money owed to you</label><input type="number" id="z-biz" min="0" placeholder="$0" inputmode="decimal"></div>
+            <div class="field"><label for="z-debt">Debts due now</label><input type="number" id="z-debt" min="0" placeholder="$0" inputmode="decimal"></div>
+            <div class="field"><label for="z-basis">Nisab based on</label><select id="z-basis"><option value="silver">Silver (595 g)</option><option value="gold">Gold (85 g)</option></select></div>
+          </div>
+          <div class="field"><label for="z-price">Today's price per gram (USD)</label><input type="number" id="z-price" min="0" step="0.01" placeholder="Look up today's price" inputmode="decimal"><span class="hint" id="z-price-hint"></span></div>
+        </form>
+        <div class="notice green" id="z-out" aria-live="polite" style="font-size:1rem"></div>
+        <button class="btn" id="z-give" style="margin-top:14px;display:none">Give this as Zakat</button>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const AMOUNTS = [10, 25, 50, 100, 250, 500];
+  let mosque = MH_DATA.mosques[0], cause = "general", amount = 50, freq = "once";
+  const money = n => "$" + Math.round(n).toLocaleString();
+
+  function render() {
+    $("causes").innerHTML = mosque.causes.map(c => `<label class="card" style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;cursor:pointer;${c.id === cause ? "box-shadow:0 0 0 2px var(--green)" : ""}">
+      <input type="radio" name="cause" value="${c.id}" ${c.id === cause ? "checked" : ""} style="margin-top:5px;accent-color:var(--green);width:18px;height:18px">
+      <span style="flex:1"><strong>${MH.esc(c.t)}</strong><span class="small muted" style="display:block">${MH.esc(c.d)}</span>
+      <span class="progress" style="display:block;margin-top:8px" aria-hidden="true"><i style="width:${Math.min(100, c.raised / c.goal * 100)}%"></i></span>
+      <span class="small muted">${money(c.raised)} of ${money(c.goal)} goal (sample figures)</span></span></label>`).join("");
+    $("amounts").innerHTML = AMOUNTS.map(a => `<button type="button" data-a="${a}" aria-pressed="${a === amount}">$${a}</button>`).join("");
+    const label = { once: "", monthly: " / month", friday: " every Friday" }[freq];
+    $("give").textContent = amount ? `Give ${money(amount)}${label}` : "Choose an amount";
+    $("give").disabled = !amount;
+    $("mosque-card").innerHTML = `<p class="eyebrow" style="margin:0">Giving to</p><h3 style="margin:2px 0 4px;font-size:1.3rem">${MH.esc(mosque.name)}</h3>
+      <p class="muted small" style="margin:0 0 12px">${MH.esc(mosque.address)}</p>
+      <p class="small" style="margin:0">Tax-exempt 501(c)(3) not-for-profit. Real donations: <a href="${mosque.donateUrl}" target="_blank" rel="noopener">official page</a> or <a href="${mosque.paypalUrl}" target="_blank" rel="noopener">PayPal</a>.</p>`;
+  }
+
+  function confirmGift() {
+    const c = mosque.causes.find(x => x.id === cause);
+    const bd = document.createElement("div");
+    bd.className = "sheet-backdrop open";
+    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="g-t" style="text-align:center">
+      <p style="font-size:3rem;margin:0">🤲</p>
+      <h2 id="g-t">JazakAllahu khayran!</h2>
+      <p class="muted">You chose to give <strong>${money(amount)}${{ once: "", monthly: " every month", friday: " every Friday" }[freq]}</strong> to <strong>${MH.esc(c.t)}</strong> at ${MH.esc(mosque.short)}.</p>
+      <div class="notice" style="text-align:left">This is a demo, so <strong>no money was charged</strong>. In the full version, this step opens the mosque's secure payment provider. To give right now, use the official page.</div>
+      <div class="actions" style="justify-content:center"><button class="btn ghost" id="g-close">Close</button><a class="btn gold" href="${mosque.donateUrl}" target="_blank" rel="noopener">Give on themuslimcenter.org</a></div></div>`;
+    document.body.appendChild(bd);
+    const close = () => bd.remove();
+    bd.querySelector("#g-close").onclick = close;
+    bd.onclick = e => { if (e.target === bd) close(); };
+  }
+
+  function zakat() {
+    const v = id => Math.max(0, parseFloat($(id).value) || 0);
+    const net = v("z-cash") + v("z-gold") + v("z-inv") + v("z-biz") - v("z-debt");
+    const grams = $("z-basis").value === "gold" ? 85 : 595, price = v("z-price");
+    $("z-price-hint").innerHTML = `Enter the price of ${$("z-basis").value} per gram. Check a live source such as <a href="https://www.kitco.com/" target="_blank" rel="noopener">Kitco</a>.`;
+    $("z-give").style.display = "none";
+    if (!price) { $("z-out").innerHTML = `Your zakatable wealth: <strong>${money(Math.max(0, net))}</strong>.<br>Add today's ${$("z-basis").value} price to check it against the nisab.`; return; }
+    const nisab = grams * price;
+    if (net < nisab) { $("z-out").innerHTML = `Your zakatable wealth (<strong>${money(Math.max(0, net))}</strong>) is below the nisab of <strong>${money(nisab)}</strong>. No zakat is due, but sadaqah is always welcome.`; return; }
+    const due = net * 0.025;
+    $("z-out").innerHTML = `Nisab: ${money(nisab)} · Your zakatable wealth: ${money(net)}<br><span style="font-size:1.6rem;font-weight:700">Zakat due: $${due.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><br><span class="small">Only if you've held at least the nisab for a full lunar year.</span>`;
+    $("z-give").style.display = "inline-flex";
+    $("z-give").onclick = () => { cause = "zakat"; amount = Math.round(due); $("custom").value = amount; render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    $("mosque").innerHTML = MH_DATA.mosques.map(m => `<option value="${m.id}">${MH.esc(m.name)}</option>`).join("");
+    render(); zakat();
+    $("causes").addEventListener("change", e => { cause = e.target.value; render(); });
+    $("amounts").addEventListener("click", e => { const b = e.target.closest("[data-a]"); if (!b) return; amount = +b.dataset.a; $("custom").value = ""; render(); });
+    $("custom").oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); render(); };
+    document.querySelectorAll("#freq button").forEach(b => b.onclick = () => { freq = b.dataset.v; document.querySelectorAll("#freq button").forEach(x => x.setAttribute("aria-pressed", x === b)); render(); });
+    $("give").onclick = confirmGift;
+    $("zform").addEventListener("input", zakat);
+    $("z-basis").onchange = zakat;
+  });
+})();
+</script>
+</body>
+</html>
