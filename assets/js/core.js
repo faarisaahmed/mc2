@@ -457,7 +457,7 @@
         <div><h5>Mosques</h5><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a></div>
         <div><h5>Give</h5><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
       </div>
-      <div class="legal"><span>MasjidHub demo for the Muslim Center of Greater Princeton. MCGP details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span>Map data © OpenStreetMap contributors</span></div>
+      <div class="legal"><span>MasjidHub demo for the Muslim Center of Greater Princeton. MCGP details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span>Mosque data © OpenStreetMap contributors · Map tiles © Esri</span></div>
     </div>`;
     document.body.appendChild(foot);
 

@@ -41,7 +41,7 @@ MasjidHub puts accurate prayer times, the Qibla, events sorted by age and intere
 | **Donations** | Pick a cause and amount, give once, monthly, or every Friday, plus a zakat calculator using the gold or silver nisab. |
 | **Personalization** | A first-visit setup asks one simple question per screen (location, school of thought, age, interests) with big tap targets and Back/Next. Location is one big **Find me automatically** button, or type a city or zip and tap the result. Change it anytime under **Settings**. |
 | **Text size** | The **Text size** button cycles normal → large → extra large on every page. |
-| **Light & dark** | Follows the phone or computer automatically, switching when the device does. You can force Light or Dark in Settings. The map dims in dark mode too. |
+| **Light & dark** | Follows the phone or computer automatically, switching when the device does. You can force Light or Dark in Settings. The map switches to a dark gray style too. |
 
 ## Pages
 
@@ -150,7 +150,7 @@ The team asked for a demo with nothing that needs paid keys, so here's exactly w
 └── README.md
 ```
 
-No build step, no framework, and no npm install. Every page is plain HTML that loads `data.js` and `core.js` and then runs its own small script. The only external library is **Leaflet 1.9.4** (from cdnjs) on the map page.
+No build step, no framework, and no npm install. Every page is plain HTML that loads `data.js` and `core.js` and then runs its own small script. The only external library is **Leaflet 1.9.4** (from cdnjs) on the map page. Map tiles are Esri's calm **Light Gray / Dark Gray Canvas** (no key needed), chosen so the mosque pins stand out. They swap automatically with the theme.
 
 ## Running it locally
 
@@ -223,7 +223,7 @@ Mosques, donation causes, services, and contacts are in the same file under `mos
 
 ## Privacy
 
-There are no accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in the browser's `localStorage`. Network requests go only to OpenStreetMap services (map tiles, Overpass mosque search, Nominatim city search), and only when you use those features.
+There are no accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in the browser's `localStorage`. Network requests go only to map services (Esri map tiles, OpenStreetMap's Overpass mosque search and Nominatim city search), and only when you use those features.
 
 ## Roadmap: from demo to product
 
@@ -236,7 +236,7 @@ There are no accounts, cookies, or analytics. Settings, planner drafts, chat mes
 ## Credits
 
 - Built for and around the **Muslim Center of Greater Princeton**, 2030 Old Trenton Rd, West Windsor Township, NJ 08550 · [themuslimcenter.org](https://themuslimcenter.org) · (609) 336-7602
-- Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors · Map library: [Leaflet](https://leafletjs.com)
+- Mosque data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors · Map tiles © Esri (Light/Dark Gray Canvas) · Map library: [Leaflet](https://leafletjs.com)
 - Reference data for verification: [Aladhan API](https://aladhan.com)
 - Fonts: Inter and Amiri (Google Fonts)
 
