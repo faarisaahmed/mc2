@@ -202,6 +202,7 @@ Mosques, donation causes, services, and contacts are in the same file under `mos
 
 ## Design
 
+- **Six-item menu:** related pages are grouped so the top bar stays short. *Prayer* holds Times, Qibla and Calendar; *Mosques* holds the Map and Add yours. Each group shows a row of tabs under the top bar. Text size and Settings sit as two icons on the right.
 - **Layout like apple.com:** a thin translucent global nav, a sticky product sub-nav on each page, large headline tiles that alternate light and dark, a two-up tile grid on the home page, and an "eyebrow, headline, subhead, then two calls to action" pattern.
 - **Colors:** the masjid's green and gold. Design tokens are at the top of `site.css` (`--green #0f5132`, `--green-deep #0a3622`, `--gold #c8a24a`, and others).
 - **Type:** [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans), a warm and very legible sans-serif, for everything. Arabic text and ﷺ use Amiri.

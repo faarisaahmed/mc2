@@ -82,22 +82,21 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* ---------- Global nav ---------- */
 .gnav{position:sticky;top:0;z-index:50;background:var(--nav);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px)}
-.gnav .wrap{display:flex;align-items:center;gap:6px;height:54px}
-.gnav .logo{display:flex;align-items:center;gap:9px;color:#fff;font-weight:700;letter-spacing:-.01em;font-size:1.05rem;margin-right:auto;white-space:nowrap}
+.gnav .wrap{display:flex;align-items:center;gap:6px;height:46px}
+.gnav .logo{display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;letter-spacing:-.01em;font-size:1rem;margin-right:auto;white-space:nowrap}
 .gnav .logo:hover{text-decoration:none}
-.gnav .logo svg{width:28px;height:28px}
-.gnav .links{display:flex;align-items:center;gap:2px}
-.gnav .links a{color:#e8efe9;font-size:.8rem;font-weight:500;padding:8px 9px;border-radius:8px;opacity:.9;white-space:nowrap}
+.gnav .logo svg{width:24px;height:24px}
+.gnav .links{display:flex;align-items:center;gap:4px}
+.gnav .links a{color:#e8efe9;font-size:.84rem;font-weight:500;padding:6px 12px;border-radius:8px;opacity:.9;white-space:nowrap}
 .gnav .links a:hover,.gnav .links a[aria-current="page"]{opacity:1;color:var(--gold-bright);text-decoration:none}
-.gnav .tools{display:flex;gap:4px;margin-left:8px}
-.icon-btn{background:transparent;border:0;color:#e8efe9;min-width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;padding:0 8px;font-size:.82rem;font-weight:600}
+.gnav .tools{display:flex;gap:2px;margin-left:10px}
+.icon-btn{background:transparent;border:0;color:#e8efe9;min-width:36px;height:36px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;padding:0 8px;font-size:.82rem;font-weight:600}
 .icon-btn:hover{background:rgba(255,255,255,.1);color:var(--gold-bright)}
-.icon-btn svg{width:20px;height:20px}
+.icon-btn svg{width:19px;height:19px}
 .menu-btn{display:none}
 @media (max-width:980px){
   .menu-btn{display:inline-flex}
-  .icon-btn .lbl{display:none}
-  .gnav .links{position:fixed;inset:54px 0 auto 0;flex-direction:column;align-items:stretch;background:var(--green-ink);padding:8px 20px 24px;gap:0;transform:translateY(-8px);opacity:0;pointer-events:none;transition:.2s;max-height:calc(100vh - 54px);overflow:auto}
+  .gnav .links{position:fixed;inset:46px 0 auto 0;flex-direction:column;align-items:stretch;background:var(--green-ink);padding:8px 20px 24px;gap:0;transform:translateY(-8px);opacity:0;pointer-events:none;transition:.2s;max-height:calc(100vh - 46px);overflow:auto}
   .gnav.open .links{transform:none;opacity:1;pointer-events:auto}
   .gnav .links a{font-size:1.2rem;padding:14px 4px;border-bottom:1px solid rgba(255,255,255,.08);border-radius:0;display:flex;align-items:center;gap:14px}
 }
@@ -105,11 +104,15 @@ button,input,select,textarea{font:inherit;color:inherit}
 @media (max-width:980px){.gnav .links a svg{display:block;width:22px;height:22px;color:var(--gold-bright)}}
 
 /* Sub-nav: product-page title bar */
-.subnav{position:sticky;top:54px;z-index:40;background:var(--subnav);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid var(--line)}
-.subnav .wrap{display:flex;align-items:center;justify-content:space-between;height:54px;gap:12px}
-.subnav h1{font-size:1.25rem;margin:0;font-weight:700;letter-spacing:-.015em;white-space:nowrap}
+.subnav{position:sticky;top:46px;z-index:40;background:var(--subnav);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid var(--line)}
+.subnav .wrap{display:flex;align-items:center;justify-content:space-between;height:50px;gap:12px}
+.subnav h1{font-size:1.15rem;margin:0;font-weight:700;letter-spacing:-.015em;white-space:nowrap}
 .subnav .right{display:flex;gap:8px;align-items:center;overflow-x:auto}
-@media (max-width:640px){.subnav h1{font-size:1.05rem}.subnav .btn.sm{padding:6px 12px;font-size:.82rem}}
+.sub-tabs{display:flex;gap:2px;background:var(--seg);border-radius:10px;padding:3px;margin-right:auto;overflow-x:auto}
+.sub-tabs a{padding:5px 14px;border-radius:8px;font-weight:600;font-size:.88rem;color:var(--muted);white-space:nowrap}
+.sub-tabs a:hover{color:var(--ink);text-decoration:none}
+.sub-tabs a[aria-current="page"]{background:var(--seg-on);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+@media (max-width:640px){.subnav h1{font-size:1.05rem}.sub-tabs a{padding:5px 10px}.subnav .btn.sm{padding:6px 12px;font-size:.82rem}}
 
 /* ---------- Type ---------- */
 .eyebrow{color:var(--gold);font-weight:700;font-size:.95rem;letter-spacing:.01em;margin:0 0 8px}
@@ -303,7 +306,7 @@ details.more[open] summary::before{content:"– "}
 .mini-ev .date-badge{width:52px;padding:6px 0}
 
 /* ---------- Map ---------- */
-.map-layout{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 108px);min-height:520px}
+.map-layout{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 96px);min-height:520px}
 .map-layout #map{height:100%;width:100%}
 .map-side{overflow:auto;border-right:1px solid var(--line);background:var(--bg);padding:18px}
 .mosque-item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:10px;cursor:pointer}

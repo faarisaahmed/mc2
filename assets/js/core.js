@@ -415,25 +415,38 @@
 
   /* ---------------- Page chrome ---------------- */
   const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#c8a24a"/><path d="M16 6c-1 2.3-5.5 4.2-5.5 9v9h11v-9c0-4.8-4.5-6.7-5.5-9z" fill="#0a3622"/><rect x="8" y="24" width="16" height="2" rx="1" fill="#0a3622"/><path d="M16 3.5v2.5" stroke="#0a3622" stroke-width="1.4" stroke-linecap="round"/><path d="M17.8 11.2a2.6 2.6 0 1 1-2.2-3.7 2 2 0 1 0 2.2 3.7z" fill="#e2c174"/></svg>`;
+  // Top-bar sections. Pages in the same section share a row of tabs under the page title.
   const NAV = [
-    ["prayer.html", "Prayer Times", "clock"], ["qibla.html", "Qibla", "compass"], ["events.html", "Events", "calendar"],
-    ["planner.html", "AI Planner", "sparkle"], ["community.html", "Community", "chat"], ["map.html", "Mosques", "pin"],
-    ["calendar.html", "Calendar", "moon"], ["donate.html", "Donate", "heart"]
+    { t: "Prayer", ic: "clock", pages: [["prayer.html", "Times"], ["qibla.html", "Qibla"], ["calendar.html", "Calendar"]] },
+    { t: "Events", ic: "calendar", pages: [["events.html", "Events"]] },
+    { t: "AI Planner", ic: "sparkle", pages: [["planner.html", "Planner"]] },
+    { t: "Mosques", ic: "pin", pages: [["map.html", "Map"], ["join.html", "Add yours"]], also: ["mosque.html"] },
+    { t: "Community", ic: "chat", pages: [["community.html", "Community"]] },
+    { t: "Donate", ic: "heart", pages: [["donate.html", "Donate"]] }
   ];
 
   function renderChrome() {
     const here = location.pathname.split("/").pop() || "index.html";
+    const section = NAV.find(g => g.pages.some(p => p[0] === here) || (g.also || []).includes(here));
     const header = document.createElement("header");
     header.className = "gnav";
     header.innerHTML = `<div class="wrap">
       <a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
-      <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(([h, t, ic]) => `<a href="${h}"${h === here ? ' aria-current="page"' : ""}>${icon(ic)}${t}</a>`).join("")}</nav>
+      <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}</a>`).join("")}</nav>
       <div class="tools">
-        <button class="icon-btn" id="mh-text" title="Make text bigger or smaller" aria-label="Change text size">${icon("text")}<span class="lbl">Text size</span></button>
-        <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}<span class="lbl">Settings</span></button>
+        <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${icon("text")}</button>
+        <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}</button>
         <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false" aria-controls="mh-links">${icon("menu")}</button>
       </div></div>`;
     document.body.prepend(header);
+    const sub = document.querySelector(".subnav h1");
+    if (sub && section && section.pages.length > 1 && section.pages.some(p => p[0] === here)) {
+      const tabs = document.createElement("nav");
+      tabs.className = "sub-tabs"; tabs.setAttribute("aria-label", section.t);
+      tabs.innerHTML = section.pages.map(([h, t]) => `<a href="${h}"${h === here ? ' aria-current="page"' : ""}>${t}</a>`).join("");
+      sub.after(tabs);
+      sub.classList.add("sr-only");
+    }
     const style = document.createElement("style");
     style.textContent = "@media (min-width:981px){.gnav .home-link{display:none}}";
     document.head.appendChild(style);
