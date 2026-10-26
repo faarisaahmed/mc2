@@ -40,11 +40,11 @@
   function parseSchedule(text, day, t) {
     const frags = text.split(/\n|,|;|\.(?!\d)|\bthen\b|\band then\b|\band\b(?=\s+(?:\w+\s+){0,4}(?:at|from|\d))/i).map(s => s.trim()).filter(Boolean);
     const blocks = [], notes = [];
-    let wake = null, sleep = null;
+    let wake = null, sleep = null, lastStart = null;
 
     frags.forEach(raw => {
       let f = raw, lower = raw.toLowerCase();
-      const hintPm = /\b(evening|night|tonight|after work|after school|pm)\b/.test(lower);
+      const hintPm = /\b(evening|night|tonight|after work|after school|dinner|supper|pm)\b/.test(lower);
       let start = null, end = null, dur = null, after = null, before = null;
 
       const durM = lower.match(/\bfor\s+(\d+(?:\.\d+)?|an?|one|two|three|four|half)\s*(?:an?\s+)?(hours?|hrs?|h|minutes?|mins?|m)\b/);
@@ -61,13 +61,20 @@
           // "8 to 3" -> 3pm: the first reading of the end that's after the start.
           if (!endTok.explicit && endTok.h != null) e = both(endTok).find(x => x > s) ?? e + 720;
           if (e <= s) e += 720;
+          // People list their day in order, so "work 9-5, class 7 to 9" means 7pm.
+          if (!startTok.explicit && startTok.h != null && startTok.h < 12 && lastStart != null && s < lastStart && s + 720 > lastStart) { s += 720; e += 720; }
           start = s; end = e;
           f = f.replace(range[0], " ");
         }
       }
       if (start == null) {
         const at = f.match(new RegExp(`(?:\\bat\\b|@|\\baround\\b|\\bby\\b)\\s*(${T_OR_WORD})`, "i")) || f.match(new RegExp(`(\\b\\d{1,2}(?::\\d{2})?\\s*(?:a\\.?m\\.?|p\\.?m\\.?)|\\b\\d{1,2}:\\d{2}\\b|\\bnoon\\b)`, "i"));
-        if (at) { const tok = parseTok(at[1], hintPm); if (tok) { start = tok.mins; f = f.replace(at[0], " "); } }
+        if (at) { const tok = parseTok(at[1], hintPm); if (tok) {
+          start = tok.mins;
+          // Same idea for one time: "dinner at 7:30" after a 9-to-5 is the evening.
+          if (!tok.explicit && tok.h != null && tok.h < 12 && lastStart != null && start < lastStart && start + 720 > lastStart) start += 720;
+          f = f.replace(at[0], " ");
+        } }
       }
       const afterM = lower.match(/\bafter\s+(dinner|lunch|breakfast|school|work|class|practice|fajr|dhuhr|zuhr|asr|maghrib|isha)\b/);
       const beforeM = lower.match(/\bbefore\s+(dinner|lunch|school|work|fajr|dhuhr|zuhr|asr|maghrib|isha)\b/);
@@ -97,6 +104,7 @@
         if (meal === "lunch") { start = 12 * 60; dur = dur || 30; }
         if (meal === "breakfast") { start = 7 * 60 + 15; dur = dur || 30; }
       }
+      if (start != null) lastStart = start;
       blocks.push({ label, start, end, dur, after, before, kind: "busy", raw });
     });
 

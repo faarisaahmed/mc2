@@ -35,7 +35,7 @@
 <script>
 (function () {
   const $ = id => document.getElementById(id);
-  const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+  const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
   let map, center, meMarker, layer, all = [], activeId = null;
 
   const icon = cls => L.divIcon({ className: "", html: `<div class="pin ${cls}">${MH.icon("mosque")}</div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
@@ -45,33 +45,52 @@
     return parts.join(", ");
   }
 
+  // Mirrors are asked at once and the first good answer wins; the main server can take close to a minute when busy.
   async function fetchOsm(lat, lng, radius) {
+    const key = `osm:${lat.toFixed(2)},${lng.toFixed(2)},${radius}`;
+    const cached = MH.store.get(key, null);
+    if (cached && Date.now() - cached.at < 864e5) return cached.list;
     const q = `[out:json][timeout:25];nwr["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});out center 80;`;
-    for (const url of OVERPASS) {
+    const ctrls = OVERPASS.map(() => new AbortController());
+    const ask = async (url, i) => {
+      const timer = setTimeout(() => ctrls[i].abort(), 60000);
       try {
-        const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
-        if (!r.ok) continue;
-        const j = await r.json();
-        return j.elements.map(e => {
-          const t = e.tags || {};
-          return { id: `osm-${e.type}-${e.id}`, name: t.name || t["name:en"] || "Mosque (name not listed)", lat: e.lat || e.center.lat, lng: e.lon || e.center.lon,
-            address: addr(t), website: t.website || t["contact:website"] || "", phone: t.phone || t["contact:phone"] || "", osm: true };
-        });
-      } catch (e) { /* try next mirror */ }
-    }
-    throw new Error("Couldn't reach the mosque database. Showing MasjidHub mosques only.");
+        // A busy server answers 429/502/503/504 quickly, so wait a moment and ask again.
+        for (let attempt = 0; ; attempt++) {
+          const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: ctrls[i].signal });
+          if (r.ok) return (await r.json()).elements;
+          if (attempt >= 3 || ![429, 502, 503, 504].includes(r.status)) throw new Error(r.status);
+          await new Promise(res => setTimeout(res, 3000 * (attempt + 1)));
+        }
+      } finally { clearTimeout(timer); }
+    };
+    let els;
+    try { els = await Promise.any(OVERPASS.map(ask)); }
+    catch (e) { throw new Error("Couldn't reach the mosque database. Showing MasjidHub mosques only."); }
+    finally { ctrls.forEach(c => c.abort()); }
+    const list = els.map(e => {
+      const t = e.tags || {};
+      return { id: `osm-${e.type}-${e.id}`, name: t.name || t["name:en"] || "Mosque (name not listed)", lat: e.lat || e.center.lat, lng: e.lon || e.center.lon,
+        address: addr(t), website: t.website || t["contact:website"] || "", phone: t.phone || t["contact:phone"] || "", osm: true };
+    });
+    MH.store.set(key, { at: Date.now(), list });
+    return list;
   }
 
   async function load(lat, lng) {
     center = { lat, lng };
     $("status").textContent = "Finding mosques…";
     const hub = MH.allMosques();
+    const withKm = list => list.map(m => Object.assign(m, { km: MH.distanceKm(center, m) })).sort((a, b) => a.km - b.km);
+    // Show MasjidHub mosques straight away while the wider search runs.
+    all = withKm(hub.slice()); draw();
+    $("status").textContent = "Finding more mosques nearby…";
     let osm = [];
     try { osm = await fetchOsm(lat, lng, 30000); }
     catch (e) { $("status").textContent = e.message; }
     // Skip OSM entries that duplicate a MasjidHub mosque.
     osm = osm.filter(o => !hub.some(h => MH.distanceKm(h, o) < 0.25));
-    all = hub.concat(osm).map(m => Object.assign(m, { km: MH.distanceKm(center, m) })).sort((a, b) => a.km - b.km);
+    all = withKm(hub.concat(osm));
     draw();
     const near = all.filter(m => m.km < 30).length;
     if ($("status").textContent.startsWith("Finding")) $("status").textContent = `${near} mosque${near === 1 ? "" : "s"} within about 20 miles`;
