@@ -46,6 +46,7 @@ The demo is built around the **[Muslim Center of Greater Princeton (MCGP)](https
 - [Accessibility](#accessibility)
 - [Privacy](#privacy)
 - [Roadmap](#roadmap)
+- [Team](#team)
 - [Credits](#credits)
 
 ## Highlights
@@ -286,6 +287,17 @@ No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and
 3. **Real chat.** A moderated backend with sign-in, reporting, and imam-verified answers.
 4. **Real payments.** Connect each mosque's own provider (Stripe, PayPal, LaunchGood).
 5. **Installable app.** A PWA with offline prayer times and adhan reminders.
+
+## Team
+
+MasjidHub was designed and built by:
+
+- **Faaris Ahmed**, project lead and repository owner
+- **Marium Anwar**
+- **Zoya Anwar**
+- **Mariam Padela**
+- **Tarik Tasgetiren**
+- **Nasir Munir**
 
 ## Credits
 
