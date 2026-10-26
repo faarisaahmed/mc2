@@ -24,6 +24,7 @@
     theme: "auto",         // auto (follow the device) | light | dark
     hijriAdj: 0,           // -2..+2 days, to match local moon sighting
     clock: "12",           // 12 | 24
+    lang: null,            // null = follow the device; otherwise a LANGS code
     onboarded: false
   };
   const saved = store.get("prefs", {});
@@ -32,7 +33,12 @@
   let prefs = Object.assign({}, DEFAULT_PREFS, saved);
   const listeners = [];
   function setPrefs(patch) {
+    const langChanged = "lang" in patch && patch.lang !== prefs.lang;
     prefs = Object.assign({}, prefs, patch);
+    if (langChanged) {
+      applyLang();
+      const lbl = document.querySelector("#mh-lang .lbl"); if (lbl) lbl.textContent = langOf().name;
+    }
     store.set("prefs", prefs);
     applyDisplay();
     listeners.forEach(fn => { try { fn(prefs); } catch (e) { console.error(e); } });
@@ -398,6 +404,7 @@
     bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
     phone: '<path d="M5 3.5h3.5l1.5 4.5-2 1.3a11 11 0 0 0 6.7 6.7l1.3-2 4.5 1.5V19a2 2 0 0 1-2 2A17 17 0 0 1 3 5.5a2 2 0 0 1 2-2z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>',
     arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
     back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
@@ -409,8 +416,123 @@
     menu: '<path d="M4 8h16M4 16h16"/>',
     home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>'
   };
+  const DIRECTIONAL = { arrow: 1, back: 1 }; // mirrored in right-to-left languages
   function icon(name, cls) {
-    return `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+    return `<svg class="ic${DIRECTIONAL[name] ? " dir" : ""}${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+  }
+
+  /* ---------------- Languages ----------------
+     Pages are written in English. Each language file (assets/i18n/xx.json) maps English text to its
+     translation, so no HTML has to change. Keys may hold {placeholders}, like "{p} in {t}", for text
+     that includes a name or number. Anything without a translation simply stays in English. */
+  const LANGS = [
+    { id: "en", name: "English", en: "English" },
+    { id: "ar", name: "العربية", en: "Arabic", rtl: true, font: "Noto+Sans+Arabic:wght@400;500;600;700;800", family: "Noto Sans Arabic" },
+    { id: "ur", name: "اردو", en: "Urdu", rtl: true, font: "Noto+Nastaliq+Urdu:wght@400;500;600;700", family: "Noto Nastaliq Urdu" },
+    { id: "bn", name: "বাংলা", en: "Bengali", font: "Noto+Sans+Bengali:wght@400;500;600;700;800", family: "Noto Sans Bengali" },
+    { id: "tr", name: "Türkçe", en: "Turkish" },
+    { id: "fr", name: "Français", en: "French" },
+    { id: "es", name: "Español", en: "Spanish" }
+  ];
+  function deviceLang() {
+    const want = (navigator.languages || [navigator.language || "en"]).map(l => String(l).slice(0, 2).toLowerCase());
+    return (want.find(l => LANGS.some(x => x.id === l))) || "en";
+  }
+  const langOf = () => LANGS.find(l => l.id === (prefs.lang || deviceLang())) || LANGS[0];
+
+  let dict = {}, patterns = [], dictLang = "en";
+  const seen = new WeakMap();          // node -> { o: English, t: what we wrote }
+  const ATTRS = ["placeholder", "aria-label", "title"];
+  const SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1, svg: 1 };
+
+  function compile(d) {
+    return Object.keys(d).filter(k => k.includes("{")).map(k => {
+      const names = [];
+      const src = k.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\\?\{(\w+)\\?\}/g, (_, n) => { names.push(n); return "(.+?)"; });
+      return [new RegExp("^" + src + "$"), names, d[k]];
+    });
+  }
+  function t(s) {
+    if (dictLang === "en" || !s) return s;
+    const key = s.trim();
+    if (!key || !/[A-Za-z]/.test(key)) return s;
+    let out = dict[key];
+    if (out == null) {
+      for (const [re, names, tpl] of patterns) {
+        const m = key.match(re);
+        if (m) { out = tpl.replace(/\{(\w+)\}/g, (_, n) => { const v = m[names.indexOf(n) + 1]; return v == null ? "" : t(v); }); break; }
+      }
+    }
+    if (out == null) { if (window.MH_MISSING) window.MH_MISSING.add(key); return s; }
+    return s.replace(key, out);
+  }
+  function trNode(n) {
+    if (n.nodeType === 3) {
+      const rec = seen.get(n), o = rec && n.data === rec.t ? rec.o : n.data, v = t(o);
+      if (v !== n.data) n.data = v;
+      seen.set(n, { o, t: v });
+    } else if (n.nodeType === 1) {
+      if (SKIP[n.nodeName] || n.translate === false || n.isContentEditable) return;
+      let rec = seen.get(n); if (!rec) seen.set(n, rec = {});
+      for (const a of ATTRS) {
+        const cur = n.getAttribute(a); if (cur == null) continue;
+        const o = rec[a] && cur === rec[a].t ? rec[a].o : cur, v = t(o);
+        if (v !== cur) n.setAttribute(a, v);
+        rec[a] = { o, t: v };
+      }
+      for (let c = n.firstChild; c; c = c.nextSibling) trNode(c);
+    }
+  }
+  let titleRec = null;
+  function translatePage() {
+    if (!document.body) return;
+    trNode(document.body);
+    const cur = document.title, o = titleRec && cur === titleRec.t ? titleRec.o : cur;
+    titleRec = { o, t: t(o) }; if (titleRec.t !== cur) document.title = titleRec.t;
+  }
+  const observer = new MutationObserver(muts => {
+    if (dictLang === "en") return;
+    for (const m of muts) {
+      if (m.type === "characterData") trNode(m.target);
+      else if (m.type === "attributes") trNode(m.target);
+      else m.addedNodes.forEach(trNode);
+    }
+  });
+
+  async function applyLang() {
+    const L = langOf(), h = document.documentElement;
+    h.lang = L.id; h.dir = L.rtl ? "rtl" : "ltr";
+    if (L.font && !document.getElementById("mh-font-" + L.id)) {
+      const link = document.createElement("link");
+      link.id = "mh-font-" + L.id; link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${L.font}&display=swap`;
+      document.head.appendChild(link);
+    }
+    h.style.setProperty("--lang-font", L.family ? `"${L.family}"` : "");
+    try {
+      if (L.id === "en") { dict = {}; patterns = []; }
+      else {
+        const res = await fetch(`assets/i18n/${L.id}.json`);
+        if (!res.ok) throw new Error(res.status);
+        dict = await res.json(); patterns = compile(dict);
+      }
+      dictLang = L.id;
+    } catch (e) { console.warn("Language file missing", L.id, e); dict = {}; patterns = []; dictLang = "en"; }
+    translatePage();
+    if (document.body) observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+    h.classList.remove("mh-translating");
+  }
+
+  function openLangMenu(anchor) {
+    const old = document.getElementById("mh-langmenu"); if (old) { old.remove(); return; }
+    const cur = langOf().id, m = document.createElement("div");
+    m.id = "mh-langmenu"; m.className = "lang-menu"; m.setAttribute("role", "menu");
+    m.innerHTML = LANGS.map(l => `<button type="button" role="menuitemradio" aria-checked="${l.id === cur}" data-l="${l.id}" lang="${l.id}" translate="no"><span>${l.name}</span>${l.id !== "en" ? `<small>${l.en}</small>` : ""}</button>`).join("");
+    anchor.after(m);
+    m.querySelector('[aria-checked="true"]').focus();
+    m.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; m.remove(); setPrefs({ lang: b.dataset.l }); };
+    setTimeout(() => document.addEventListener("click", function off(e) { if (!m.contains(e.target) && e.target !== anchor) { m.remove(); document.removeEventListener("click", off); } }), 0);
+    m.onkeydown = e => { if (e.key === "Escape") { m.remove(); anchor.focus(); } };
   }
 
   /* ---------------- Page chrome ---------------- */
@@ -434,6 +556,7 @@
       <a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
       <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}</a>`).join("")}</nav>
       <div class="tools">
+        <button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>
         <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${icon("text")}</button>
         <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}</button>
         <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false" aria-controls="mh-links">${icon("menu")}</button>
@@ -455,6 +578,7 @@
       e.currentTarget.innerHTML = icon(o ? "close" : "menu");
     };
     header.querySelector("#mh-settings").onclick = () => openSettings();
+    header.querySelector("#mh-lang").onclick = e => openLangMenu(e.currentTarget);
     header.querySelector("#mh-text").onclick = () => {
       const next = { md: "lg", lg: "xl", xl: "md" }[prefs.text] || "lg";
       setPrefs({ text: next });
@@ -493,7 +617,7 @@
   // openSettings({step:"loc"}) -> jump straight to one step
   function openSettings(arg) {
     const welcome = arg === true;
-    const steps = welcome ? ["loc", "school", "age", "interests"] : ["loc", "school", "age", "interests", "display"];
+    const steps = welcome ? ["lang", "loc", "school", "age", "interests"] : ["lang", "loc", "school", "age", "interests", "display"];
     let i = Math.max(0, steps.indexOf(arg && arg.step));
     const draft = JSON.parse(JSON.stringify(prefs));
     let searchTimer = null, searchToken = 0;
@@ -511,6 +635,11 @@
       <span class="c-check">${icon("check")}</span></button>`;
 
     const VIEWS = {
+      lang: () => `
+        <h2 id="sh-title">Choose your language</h2>
+        <p class="intro">You can change this any time with the globe button at the top.</p>
+        <div class="choices two" id="sh-lang">${LANGS.map(l => `<button type="button" class="choice" data-v="${l.id}" aria-pressed="${langOf().id === l.id}" lang="${l.id}" translate="no">
+          <span><span class="c-t">${l.name}</span>${l.id !== "en" ? `<span class="c-d">${l.en}</span>` : ""}</span><span class="c-check">${icon("check")}</span></button>`).join("")}</div>`,
       loc: () => `
         <h2 id="sh-title">Where do you pray?</h2>
         <p class="intro">This sets your prayer times and shows the mosques closest to you.</p>
@@ -624,6 +753,10 @@
         };
         $("#sh-q").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchTimer); const q = e.target.value.trim(); if (q) runSearch(q); } };
       }
+      if (step === "lang") {
+        // Switch right away so the rest of setup is already in the chosen language.
+        sheet.querySelectorAll("#sh-lang .choice").forEach(b => b.onclick = () => { setPrefs({ lang: b.dataset.v }); draft.lang = b.dataset.v; pressGroup("#sh-lang", b.dataset.v); });
+      }
       if (step === "school") {
         sheet.querySelectorAll("#sh-asr .choice").forEach(b => b.onclick = () => { draft.asr = b.dataset.v; pressGroup("#sh-asr", draft.asr); });
         $("#sh-method").onchange = e => { draft.method = e.target.value; };
@@ -680,5 +813,5 @@
     openSettings, toast, icon, LOGO
   };
 
-  document.addEventListener("DOMContentLoaded", renderChrome);
+  document.addEventListener("DOMContentLoaded", () => { renderChrome(); applyLang(); });
 })();

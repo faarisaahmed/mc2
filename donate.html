@@ -106,7 +106,7 @@
       <div style="color:var(--gold)">${MH.icon("heart","ic-lg")}</div>
       <h2 id="g-t">JazakAllahu khayran!</h2>
       <p class="muted">You chose to give <strong>${money(amount)}${{ once: "", monthly: " every month", friday: " every Friday" }[freq]}</strong> to <strong>${MH.esc(c.t)}</strong> at ${MH.esc(mosque.short)}.</p>
-      <div class="notice" style="text-align:left">This is a demo, so <strong>no money was charged</strong>. In the full version, this step opens the mosque's secure payment provider. To give right now, use the official page.</div>
+      <div class="notice" style="text-align:start">This is a demo, so <strong>no money was charged</strong>. In the full version, this step opens the mosque's secure payment provider. To give right now, use the official page.</div>
       <div class="actions" style="justify-content:center"><button class="btn ghost" id="g-close">Close</button><a class="btn gold" href="${mosque.donateUrl}" target="_blank" rel="noopener">Give on themuslimcenter.org</a></div></div>`;
     document.body.appendChild(bd);
     const close = () => bd.remove();

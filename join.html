@@ -120,7 +120,7 @@
       bd.className = "sheet-backdrop open";
       bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" style="text-align:center"><div style="color:var(--gold)">${MH.icon("mosque","ic-lg")}</div><h2>Application received</h2>
         <p class="muted">It's saved on this device and shows on the map as pending. In the full version, here's what would happen next:</p>
-        <ol style="text-align:left;line-height:1.8"><li>We verify the mosque with you by email (1–3 days).</li><li>You get a simple dashboard to post events and update times.</li><li>Your mosque goes live for everyone nearby.</li></ol>
+        <ol style="text-align:start;line-height:1.8"><li>We verify the mosque with you by email (1–3 days).</li><li>You get a simple dashboard to post events and update times.</li><li>Your mosque goes live for everyone nearby.</li></ol>
         <div class="actions" style="justify-content:center"><a class="btn" href="map.html">See it on the map</a></div></div>`;
       document.body.appendChild(bd);
       bd.onclick = ev => { if (ev.target === bd) bd.remove(); };

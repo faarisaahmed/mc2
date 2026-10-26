@@ -101,7 +101,7 @@
       ${match}
       <div class="when"><div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
       <div><div class="meta">${e.start.toLocaleDateString([], { weekday: "long" })}</div><div style="font-weight:600">${MH.fmtTime(e.start)} – ${MH.fmtTime(e.end)}</div></div></div>
-      <h3 style="margin-top:6px${match ? ";padding-right:110px" : ""}">${MH.esc(e.title)}</h3>
+      <h3 style="margin-top:6px${match ? ";padding-inline-end:110px" : ""}">${MH.esc(e.title)}</h3>
       <p class="muted" style="margin:0">${MH.esc(e.desc)}</p>
       <div class="meta">${MH.icon("pin")}<span>${MH.esc(e.place)}${e.cost ? " · " + MH.esc(e.cost) : ""}</span></div>
       ${e.sample ? `<div class="meta">${MH.icon("clock")}<span>${e.after ? "Time follows " + e.after[0].toUpperCase() + e.after.slice(1) + " prayer" : "Sample time"}. Confirm with the mosque.</span></div>` : ""}
