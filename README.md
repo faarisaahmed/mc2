@@ -292,7 +292,7 @@ No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and
 
 MasjidHub was designed and built by:
 
-- **Faaris Ahmed**, project lead and repository owner
+- **Faaris Ahmed**, repository owner
 - **Marium Anwar**
 - **Zoya Anwar**
 - **Mariam Padela**
