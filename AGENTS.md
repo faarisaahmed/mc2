@@ -42,6 +42,8 @@ There is no test suite. Verify changes by loading the affected pages in a browse
 | `assets/css/site.css` | All styles. Design tokens at the top |
 | `assets/i18n/<lang>.json` | Translations: maps English text to translated text (see i18n below) |
 | `docs/readme/` | README images only |
+| `manifest.webmanifest` | App name, icons, colours and shortcuts for installing the site as an app |
+| `sw.js` | Service worker: saves the site's own files so pages open offline. Add new pages or scripts to `SHELL` and bump `VERSION` |
 
 ### Load order (it matters)
 
