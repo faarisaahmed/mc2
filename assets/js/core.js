@@ -814,4 +814,10 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => { renderChrome(); applyLang(); });
+
+  // Installable app: the service worker (sw.js) saves the site's own files so pages open offline.
+  // It stores nothing personal and sends nothing anywhere. Needs http(s); skipped on file://.
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
 })();

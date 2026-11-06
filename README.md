@@ -172,6 +172,7 @@ The team asked for a demo that needs no paid keys. Here is exactly what is real.
 | Community chat | **Demo.** Messages stay in your browser. Sample posts are labelled. "Ask the Imam" never invents answers from a real person. |
 | Donations | **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's real donation page. |
 | Add your mosque | **Demo.** Applications are saved in your browser and show on your map as "pending". |
+| Install as an app | **Real.** Phones and computers can install MasjidHub from the browser. After one visit, every page except the map opens offline. Adhan reminders still need the app open. |
 
 ## Run it locally
 
@@ -244,13 +245,15 @@ after: "isha", mins: 60          // starts ~20 min after Isha, lasts 60 min; add
 ├── join.html             Add your mosque
 ├── donate.html           Donations and zakat calculator
 ├── mosque.html           MCGP profile page
+├── manifest.webmanifest  App name, icons and shortcuts for installing
+├── sw.js                 Service worker: saves the site's files so pages open offline
 ├── assets/
 │   ├── css/site.css      All styles (design tokens at the top)
 │   ├── js/boot.js        Applies saved theme and text size before the page paints
 │   ├── js/core.js        Shared engine: settings, prayer math, Hijri, Qibla, icons, nav, setup
 │   ├── js/data.js        Mosques, events, interests, age groups   ← edit content here
 │   ├── js/planner.js     Day planner engine (schedule parser and prayer placement)
-│   └── img/icon.svg      Logo and favicon
+│   └── img/              Logo (icon.svg) and app icons (PNG)
 └── docs/readme/          Images used in this README
 ```
 
@@ -278,7 +281,7 @@ Every page is plain HTML that loads `data.js` and `core.js`, then runs its own s
 
 ## Privacy
 
-No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features.
+No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features. To work offline, the app saves the site's own files (pages, styles, scripts, fonts) on your device; it never saves your location searches or map tiles.
 
 ## Roadmap
 
@@ -286,7 +289,7 @@ No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and
 2. **Mosque dashboard.** Approved mosques sign in to post events, set iqamah and Jumu'ah times, and manage causes.
 3. **Real chat.** A moderated backend with sign-in, reporting, and imam-verified answers.
 4. **Real payments.** Connect each mosque's own provider (Stripe, PayPal, LaunchGood).
-5. **Installable app.** A PWA with offline prayer times and adhan reminders.
+5. **Installable app.** Done: installable, with offline prayer times. Next: adhan reminders that work with the app closed, then Play Store and App Store versions.
 
 ## Team
 
