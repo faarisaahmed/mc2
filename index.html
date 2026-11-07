@@ -35,6 +35,7 @@
   <div class="wrap">
     <h2 class="title center" style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:22px">What would you like to do?</h2>
     <nav class="quick" id="quick" aria-label="Quick actions"></nav>
+    <div id="install" hidden></div>
   </div>
 </section>
 
@@ -234,6 +235,7 @@
   function renderAll() { renderPrayers(); renderEvents(); renderCalendar(); tick(); }
   document.addEventListener("DOMContentLoaded", () => {
     renderStatic(); renderAll();
+    MH.installCard($("install"));
     MH.bindEventMenus($("home-events"), key => homeEvents.find(x => x.key === key));
     setInterval(tick, 1000);
     MH.onPrefs(renderAll);

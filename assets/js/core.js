@@ -541,7 +541,9 @@
     menu: '<path d="M4 8h16M4 16h16"/>',
     home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>',
     share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/>',
-    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    "ios-share": '<path d="M12 3.5v11M8.5 7 12 3.5 15.5 7"/><path d="M9 10H6.5v10.5h11V10H15"/>',   // the iPhone Share button
+    mobile: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'
   };
   const DIRECTIONAL = { arrow: 1, back: 1 }; // mirrored in right-to-left languages
   function icon(name, cls) {
@@ -760,6 +762,48 @@
     document.querySelectorAll("i[data-ic]").forEach(el => { el.outerHTML = icon(el.dataset.ic, el.className); });
   }
 
+  /* ---------------- Install the app ----------------
+     Android and desktop Chrome/Edge offer an install prompt (beforeinstallprompt), which can fire on any
+     page, so it's kept here. iPhone and iPad have no prompt: people use Share > Add to Home Screen.
+     Nothing is sent anywhere; "hide this" is remembered on this device only. */
+  let installEvent = null;
+  const installViews = [];
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; installViews.forEach(fn => fn()); });
+  window.addEventListener("appinstalled", () => { installEvent = null; installViews.forEach(fn => fn()); });
+  const isInstalledApp = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  // "prompt" (can show the browser's install dialog), "ios" (show the steps), or "" (nothing to offer).
+  function installWay() {
+    if (isInstalledApp() || store.get("install-hidden", false)) return "";
+    if (installEvent) return "prompt";
+    return isIOS() ? "ios" : "";
+  }
+  // Fills `el` with a small "Get the app" card when installing is possible; hides it otherwise.
+  function installCard(el) {
+    const draw = () => {
+      const way = installWay();
+      el.hidden = !way;
+      el.innerHTML = !way ? "" : `<div class="install-card">
+        <span class="install-ic">${icon("mobile")}</span>
+        <p class="install-txt"><strong>Get the MasjidHub app</strong>
+          <span>${way === "prompt" ? "Prayer times and Qibla on your home screen, even offline."
+            : `Tap ${icon("ios-share")}<b>Share</b>, then <b>Add to Home Screen</b>.`}</span></p>
+        ${way === "prompt" ? `<button class="btn sm" type="button" data-install>Install</button>` : ""}
+        <button class="icon-btn install-x" type="button" data-hide aria-label="Hide this">${icon("close")}</button>
+      </div>`;
+    };
+    el.addEventListener("click", async e => {
+      if (e.target.closest("[data-install]") && installEvent) {
+        const ev = installEvent; installEvent = null;   // the browser allows one prompt per event
+        ev.prompt();
+        try { await ev.userChoice; } catch (err) { /* ignore */ }
+        draw();
+      } else if (e.target.closest("[data-hide]")) { store.set("install-hidden", true); draw(); }
+    });
+    installViews.push(draw);
+    draw();
+  }
+
   let toastTimer;
   function toast(msg) {
     const t = document.getElementById("mh-toast"); if (!t) return;
@@ -966,7 +1010,7 @@
     fmtTime, fmtTimeHtml, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
     occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
-    openSettings, toast, icon, LOGO
+    openSettings, toast, icon, LOGO, installCard
   };
 
   document.addEventListener("DOMContentLoaded", () => {
