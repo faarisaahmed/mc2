@@ -68,7 +68,7 @@
     };
     let els;
     try { els = await Promise.any(OVERPASS.map(ask)); }
-    catch (e) { throw new Error("Couldn't reach the mosque database. Showing MasjidHub mosques only."); }
+    catch (e) { throw new Error(navigator.onLine === false ? "You're offline. Showing MasjidHub mosques only." : "Couldn't reach the mosque database. Showing MasjidHub mosques only."); }
     finally { ctrls.forEach(c => c.abort()); }
     const list = els.map(e => {
       const t = e.tags || {};
@@ -114,10 +114,10 @@
 
   function draw() {
     if (layer) layer.remove();
-    layer = L.layerGroup().addTo(map);
     const f = $("filter").value.toLowerCase();
     const shown = all.filter(m => !f || m.name.toLowerCase().includes(f));
-    shown.forEach(m => {
+    if (map) layer = L.layerGroup().addTo(map);
+    if (map) shown.forEach(m => {
       m.marker = L.marker([m.lat, m.lng], { icon: icon(m.pending ? "pending" : m.hub ? "hub" : ""), title: m.name, zIndexOffset: m.hub ? 1000 : 0 })
         .bindPopup(() => popupHtml(m), { maxWidth: 280 }).addTo(layer);
       m.marker.on("click", () => select(m.id, false));
@@ -133,7 +133,7 @@
     const m = all.find(x => x.id === id); if (!m) return;
     activeId = id;
     document.querySelectorAll(".mosque-item").forEach(b => b.classList.toggle("active", b.dataset.id === id));
-    if (fly) { map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 14), { duration: .6 }); setTimeout(() => m.marker.openPopup(), 650); }
+    if (fly && map) { map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 14), { duration: .6 }); setTimeout(() => m.marker.openPopup(), 650); }
   }
 
   // Calm gray basemaps (Esri Canvas, no key) so the mosque pins stand out: Light Gray in light mode, Dark Gray in dark mode.
@@ -164,6 +164,21 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     const p = MH.prefs.loc;
+    // Leaflet comes from a CDN the service worker doesn't save, so offline there is no map.
+    // List the MasjidHub mosques instead, and reload once the connection is back.
+    if (!window.L) {
+      document.querySelector(".map-layout").classList.add("offline");
+      $("map").innerHTML = `<div class="empty">${MH.icon("pin")}<h3>You're offline</h3><p>The map needs an internet connection. It will load when you're back online.</p></div>`;
+      $("area").disabled = true;
+      $("me").disabled = true;
+      $("filter").oninput = draw;
+      center = { lat: p.lat, lng: p.lng };
+      all = MH.allMosques().map(m => Object.assign(m, { km: MH.distanceKm(center, m) })).sort((a, b) => a.km - b.km);
+      draw();
+      $("status").textContent = "You're offline. Showing MasjidHub mosques only.";
+      addEventListener("online", () => location.reload(), { once: true });
+      return;
+    }
     map = L.map("map", { zoomControl: true }).setView([p.lat, p.lng], 11);
     setTiles();
     // Follow the device's light/dark switch live, and the theme picked in Settings.
@@ -171,6 +186,8 @@
     MH.onPrefs(setTiles);
     setMe(p);
     load(p.lat, p.lng);
+    // If the search failed while offline, run it again once the connection is back.
+    addEventListener("online", () => { if ($("status").textContent.startsWith("You're offline")) load(center.lat, center.lng); });
 
     $("list").addEventListener("click", e => { const b = e.target.closest(".mosque-item"); if (b) select(b.dataset.id, true); });
     $("filter").oninput = draw;
