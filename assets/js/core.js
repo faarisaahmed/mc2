@@ -185,6 +185,13 @@
     // In right-to-left pages, "9:00 AM" would show as "AM 9:00": isolate it as left-to-right text (LRI … PDI).
     return document.documentElement.dir === "rtl" ? "⁦" + s + "⁩" : s;
   }
+  // The same time as HTML, with AM/PM in its own <span class="ap"> so tight layouts can show it smaller.
+  function fmtTimeHtml(d) {
+    if (!d || isNaN(d)) return "--:--";
+    const parts = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" }).formatToParts(d);
+    const html = parts.map(p => p.type === "dayPeriod" ? `<span class="ap">${esc(p.value)}</span>` : esc(p.value)).join("");
+    return document.documentElement.dir === "rtl" ? "⁦" + html + "⁩" : html;
+  }
   // Times are always shown on the phone's clock. That can differ from the chosen place's own clock
   // (e.g. Makkah picked on a phone in New Jersey), so pages say which time zone they use.
   function tzName(d) {
@@ -927,7 +934,7 @@
     get prefs() { return prefs; }, setPrefs, onPrefs, store,
     METHODS, PRAYERS, prayerTimes, todayTimes, nextPrayer, qiblaBearing, KAABA, distanceKm, fmtDistance, compassWord,
     hijri, fmtHijri, HIJRI_MONTHS, ISLAMIC_DAYS, islamicDay, upcomingIslamicDays,
-    fmtTime, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
+    fmtTime, fmtTimeHtml, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
     occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
     openSettings, toast, icon, LOGO

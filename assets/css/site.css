@@ -191,7 +191,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .prayer-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;max-width:880px;margin:34px auto 0;padding:0 0 56px}
 .prayer-strip .p{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:16px 8px;text-align:center}
 .prayer-strip .p .n{font-size:.88rem;color:#c9d8ce;font-weight:500}
-.prayer-strip .p .t{font-size:1.35rem;font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.prayer-strip .p{container-type:inline-size}
+/* One line always: AM/PM is smaller, and the time shrinks a little only when its box is too narrow for it. */
+.prayer-strip .p .t{font-size:min(1.35rem,24cqi);font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.prayer-strip .p .t .ap{font-size:.62em;font-weight:600;margin-inline-start:.12em}
 .prayer-strip .p.next{background:var(--gold);color:var(--green-ink);border-color:var(--gold)}
 .prayer-strip .p.next .n{color:var(--green-ink)}
 .prayer-strip .p.past{opacity:.55}

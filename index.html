@@ -178,7 +178,7 @@
     $("next-at").textContent = `${next.t} is at ${MH.fmtTime(next.time)}${next.tomorrow ? " tomorrow" : ""}`;
     $("strip").innerHTML = MH.PRAYERS.map(p => {
       const cls = p.id === next.id && !next.tomorrow ? "next" : (t[p.id] < now ? "past" : "");
-      return `<div class="p ${cls}"><div class="n">${p.t}</div><div class="t">${MH.fmtTime(t[p.id])}</div></div>`;
+      return `<div class="p ${cls}"><div class="n">${p.t}</div><div class="t">${MH.fmtTimeHtml(t[p.id])}</div></div>`;
     }).join("");
     const b = MH.qiblaBearing(MH.prefs.loc.lat, MH.prefs.loc.lng);
     $("qibla-lead").textContent = `From ${MH.prefs.loc.name}, the Qibla is ${Math.round(b)}° ${MH.compassWord(b)}.`;

@@ -47,7 +47,7 @@
         <a class="btn ghost" href="tel:${m.phone.replace(/\D/g, "")}">Call</a>
         <a class="chev" target="_blank" rel="noopener" href="${m.website}">Official website</a>
       </div>
-      <div class="prayer-strip wrap" style="padding-bottom:0">${MH.PRAYERS.map(p => `<div class="p ${next && p.id === next.id ? "next" : t[p.id] < now ? "past" : ""}"><div class="n">${p.t}</div><div class="t">${MH.fmtTime(t[p.id])}</div></div>`).join("")}</div>
+      <div class="prayer-strip wrap" style="padding-bottom:0">${MH.PRAYERS.map(p => `<div class="p ${next && p.id === next.id ? "next" : t[p.id] < now ? "past" : ""}"><div class="n">${p.t}</div><div class="t">${MH.fmtTimeHtml(t[p.id])}</div></div>`).join("")}</div>
       <p class="small" style="color:#c9d8ce;margin:14px 0 0">Adhan times calculated for the mosque's location, shown in your time zone${MH.tzName(now) ? ` (${e(MH.tzName(now))})` : ""}. For iqamah times, use the <strong>Athan+</strong> app or check with MCGP.</p>
     </section>
 
