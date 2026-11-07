@@ -122,10 +122,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* Sub-nav: product-page title bar */
 .subnav{position:sticky;top:46px;z-index:40;background:var(--subnav);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid var(--line)}
-.subnav .wrap{display:flex;align-items:center;justify-content:space-between;height:50px;gap:12px}
+/* One row when everything fits; on narrow screens or with larger text the buttons wrap to a second row instead of being cut off. */
+.subnav .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;min-height:50px;column-gap:12px;row-gap:0}
 .subnav h1{font-size:1.15rem;margin:0;font-weight:700;letter-spacing:-.015em;white-space:nowrap}
-.subnav .right{display:flex;gap:8px;align-items:center;overflow-x:auto}
-.sub-tabs{display:flex;gap:2px;background:var(--seg);border-radius:10px;padding:3px;margin-inline-end:auto;overflow-x:auto}
+.subnav .right{display:flex;gap:8px;align-items:center;overflow-x:auto;padding-block:3px;margin-inline-start:auto;flex:0 1 auto}
+.sub-tabs{flex:0 1 auto;display:flex;gap:2px;background:var(--seg);border-radius:10px;padding:3px;margin-inline-end:auto;overflow-x:auto}
 .sub-tabs a{min-height:44px;display:inline-flex;align-items:center;padding:5px 14px;border-radius:8px;font-weight:600;font-size:.88rem;color:var(--muted);white-space:nowrap}
 .sub-tabs a:hover{color:var(--ink);text-decoration:none}
 .sub-tabs a[aria-current="page"]{background:var(--seg-on);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
