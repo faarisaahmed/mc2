@@ -24,6 +24,7 @@
   <h1 class="headline" id="hero-h"><span id="next-name">Prayer</span> in <span class="countdown" id="next-count">…</span></h1>
   <p class="lead" id="next-at">&nbsp;</p>
   <p style="margin:16px 0 0"><button class="loc-link" id="hero-loc" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span id="loc-name"></span><span style="opacity:.75;font-weight:500">· Change</span></button></p>
+  <p class="tz-note" id="tz-note"></p>
   <div class="prayer-strip wrap" id="strip" aria-label="Today's prayer times"></div>
 </section>
 
@@ -172,6 +173,7 @@
     const now = new Date(), t = MH.todayTimes(now), next = MH.nextPrayer(now);
     $("hero-date").textContent = `${MH.fmtDate(now)} · ${MH.fmtHijri(now)}`;
     $("loc-name").textContent = MH.prefs.loc.name;
+    $("tz-note").textContent = MH.tzNote();
     $("next-name").textContent = next.t;
     $("next-at").textContent = `${next.t} is at ${MH.fmtTime(next.time)}${next.tomorrow ? " tomorrow" : ""}`;
     $("strip").innerHTML = MH.PRAYERS.map(p => {
