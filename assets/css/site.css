@@ -90,7 +90,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .gnav .links a{color:#e8efe9;font-size:.84rem;font-weight:500;padding:6px 12px;min-height:44px;display:inline-flex;align-items:center;border-radius:8px;opacity:.9;white-space:nowrap}
 .gnav .links a:hover,.gnav .links a[aria-current="page"]{opacity:1;color:var(--gold-bright);text-decoration:none}
 .gnav .tools{display:flex;gap:2px;margin-inline-start:10px}
-@media (max-width:360px){.gnav .tools{margin-inline-start:0}.gnav .wrap{padding:0 12px}.gnav .logo{font-size:min(1rem,18px)}}  /* fits 44px buttons and the larger-text logo on small phones */
+@media (max-width:360px){.gnav .tools{margin-inline-start:0;gap:0}.gnav .wrap{padding:0 12px}.gnav .logo{font-size:min(1rem,18px);gap:6px}}  /* fits 44px buttons and the larger-text logo on small phones */
 .icon-btn{background:transparent;border:0;color:#e8efe9;min-width:44px;height:44px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;padding:0 8px;font-size:.82rem;font-weight:600}
 .icon-btn:hover{background:rgba(255,255,255,.1);color:var(--gold-bright)}
 .icon-btn svg{width:19px;height:19px}
