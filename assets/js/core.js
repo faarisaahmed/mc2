@@ -393,6 +393,26 @@
     lines.push("END:VCALENDAR");
     return lines.map(fold).join("\r\n") + "\r\n";
   }
+  // Ways to pass one event occurrence on: a link that opens it on events.html, a Google Calendar
+  // "add event" link, a WhatsApp message, and plain text for the phone's share sheet.
+  // These are links the visitor chooses to open; MasjidHub itself sends nothing anywhere.
+  function eventLinks(e) {
+    const z = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const m = e.mosque || MH_DATA.mosques[0];
+    const isAddress = /\d/.test(e.place || "") && (e.place || "").includes(",");
+    const placeShort = !e.place || e.place === m.short ? m.short : isAddress ? e.place : `${e.place}, ${m.short}`;
+    const where = isAddress ? e.place : [e.place && e.place !== m.short ? e.place : "", m.name, m.address].filter(Boolean).join(", ");
+    const url = new URL(`events.html?ev=${encodeURIComponent(e.key)}`, location.href).href;
+    const when = `${fmtDate(e.start, { weekday: "short", month: "short", day: "numeric" })} · ${fmtTime(e.start)} – ${fmtTime(e.end)}`;
+    const note = e.sample ? "Time to be confirmed with the mosque." : "";
+    const text = [e.title, `${when} · ${placeShort}`, note].filter(Boolean).join("\n");
+    const g = new URLSearchParams({ action: "TEMPLATE", text: e.title, details: [e.desc, note, url].filter(Boolean).join("\n\n"), location: where });
+    return {
+      url, text,
+      google: `https://calendar.google.com/calendar/render?${g}&dates=${z(e.start)}/${z(e.end)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + "\n" + url)}`
+    };
+  }
   function download(name, text, type) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: type || "text/plain" }));
@@ -440,7 +460,9 @@
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
     text: '<path d="M4 19 9 5l5 14M5.8 14h6.4M15 19l3-8 3 8M15.9 16.5h4.2"/>',
     menu: '<path d="M4 8h16M4 16h16"/>',
-    home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>'
+    home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>',
+    share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
   };
   const DIRECTIONAL = { arrow: 1, back: 1 }; // mirrored in right-to-left languages
   function icon(name, cls) {
@@ -835,7 +857,7 @@
     hijri, fmtHijri, HIJRI_MONTHS, ISLAMIC_DAYS, islamicDay, upcomingIslamicDays,
     fmtTime, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
-    occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, download,
+    occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, download,
     openSettings, toast, icon, LOGO
   };
 

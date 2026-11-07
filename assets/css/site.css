@@ -314,6 +314,13 @@ details.more[open] summary::before{content:"– "}
 .ev .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .ev .match{position:absolute;top:18px;inset-inline-end:18px}
 .ev h3{font-size:1.12rem}
+.ev-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;position:relative}
+/* Calendar and share menus open under the buttons, as wide as the card, so they never run off a phone screen */
+.pop-menu{position:absolute;inset-block-start:calc(100% + 6px);inset-inline:0;z-index:30;display:flex;flex-direction:column;gap:2px;padding:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.pop-menu[hidden]{display:none}
+.pop-menu a,.pop-menu button{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:.95rem;font-weight:600;text-align:start;text-decoration:none;cursor:pointer}
+.pop-menu a:hover,.pop-menu button:hover{background:var(--soft-green);text-decoration:none}
+.pop-menu svg{width:18px;height:18px;flex:none;color:var(--accent)}
 .empty{text-align:center;padding:48px 20px;color:var(--muted)}
 .empty svg{width:44px;height:44px;color:var(--gold)}
 .filters{display:flex;flex-direction:column;gap:16px}
