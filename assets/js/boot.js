@@ -1,6 +1,10 @@
 /* Runs in <head> before the page paints: applies the saved theme, text size and language direction so nothing flashes. */
 (function () {
   var h = document.documentElement;
+  // Keep the page hidden until core.js has added the top bar and the page has drawn itself, so nothing
+  // jumps when it appears (core.js shows it; this timer is the safety net if a script fails).
+  h.classList.add("mh-booting");
+  setTimeout(function () { h.classList.remove("mh-booting"); }, 3000);
   try {
     var p = JSON.parse(localStorage.getItem("mh:prefs") || "{}");
     if (p.theme === "light" || p.theme === "dark") h.setAttribute("data-theme", p.theme);
