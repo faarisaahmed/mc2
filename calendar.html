@@ -76,7 +76,7 @@
     buildEvents();
     const y = view.getFullYear(), m = view.getMonth(), first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
     const hFirst = MH.hijri(first), hLast = MH.hijri(last);
-    $("greg-month").textContent = first.toLocaleDateString([], { month: "long", year: "numeric" });
+    $("greg-month").textContent = first.toLocaleDateString(MH.uiLocale(), { month: "long", year: "numeric" });
     $("hijri-months").textContent = hFirst.month === hLast.month ? `${hFirst.name} ${hFirst.year}` : `${hFirst.name} – ${hLast.name} ${hLast.year}`;
     $("hijri-ar").textContent = hFirst.month === hLast.month ? hFirst.ar : `${hFirst.ar} – ${hLast.ar}`;
 
@@ -99,8 +99,8 @@
   function renderDetail() {
     const d = selected, h = MH.hijri(d), hd = MH.islamicDay(d), t = MH.todayTimes(d), f = fasting(d), evs = evByDay[MH.ymd(d)] || [];
     $("detail").innerHTML = `
-      <p class="eyebrow" style="margin:0">${d.toLocaleDateString([], { weekday: "long" })}</p>
-      <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</h3>
+      <p class="eyebrow" style="margin:0">${d.toLocaleDateString(MH.uiLocale(), { weekday: "long" })}</p>
+      <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString(MH.uiLocale(), { month: "long", day: "numeric", year: "numeric" })}</h3>
       <p style="margin:2px 0 0;color:var(--accent);font-weight:600">${h.day} ${h.name} ${h.year} AH <span class="arabic" style="color:var(--gold);font-weight:400">${h.ar}</span></p>
       ${hd ? `<div class="notice" style="margin-top:12px"><span><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</span></div>` : ""}
       ${f ? `<div class="notice ${f.no ? "danger" : "green"}" style="margin-top:10px">${MH.icon(f.no ? "alert" : "moon")}<span>${MH.esc(f.t)}</span></div>` : ""}

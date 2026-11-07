@@ -172,6 +172,7 @@ The team asked for a demo that needs no paid keys. Here is exactly what is real.
 | AI Day Planner | **Demo engine.** A rule-based planner that runs in the browser with no API key. It really checks prayer windows, but it is not a large language model. |
 | Community chat | **Demo.** Messages stay in your browser. Sample posts are labelled. "Ask the Imam" never invents answers from a real person. |
 | Donations | **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's real donation page. |
+| Languages | **English only for now.** The site is built for translation (right-to-left included), and a language appears in the menu once its translation file exists and a fluent speaker has checked it. |
 | Add your mosque | **Demo.** Applications are saved in your browser and show on your map as "pending". |
 | Install as an app | **Real.** Phones and computers can install MasjidHub from the browser. After one visit, every page except the map opens offline. Adhan reminders still need the app open. |
 

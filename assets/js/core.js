@@ -179,26 +179,32 @@
   }
 
   /* ---------------- Formatting ---------------- */
+  // Dates, times and numbers follow the site's language, not the phone's: an Arabic phone reading the
+  // English site gets English dates. The phone's regional style is kept when it is the same language (en-GB).
+  function uiLocale() {
+    const site = langOf().id, dev = navigator.language || "en";
+    return dev.slice(0, 2).toLowerCase() === site ? dev : site;
+  }
   function fmtTime(d) {
     if (!d || isNaN(d)) return "--:--";
-    const s = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" });
+    const s = d.toLocaleTimeString(uiLocale(), { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" });
     // In right-to-left pages, "9:00 AM" would show as "AM 9:00": isolate it as left-to-right text (LRI … PDI).
     return document.documentElement.dir === "rtl" ? "⁦" + s + "⁩" : s;
   }
   // The same time as HTML, with AM/PM in its own <span class="ap"> so tight layouts can show it smaller.
   function fmtTimeHtml(d) {
     if (!d || isNaN(d)) return "--:--";
-    const parts = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" }).formatToParts(d);
+    const parts = new Intl.DateTimeFormat(uiLocale(), { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" }).formatToParts(d);
     const html = parts.map(p => p.type === "dayPeriod" ? `<span class="ap">${esc(p.value)}</span>` : esc(p.value)).join("");
     return document.documentElement.dir === "rtl" ? "⁦" + html + "⁩" : html;
   }
   // Times are always shown on the phone's clock. That can differ from the chosen place's own clock
   // (e.g. Makkah picked on a phone in New Jersey), so pages say which time zone they use.
   function tzName(d) {
-    try { return (new Intl.DateTimeFormat([], { timeZoneName: "long" }).formatToParts(d || new Date()).find(p => p.type === "timeZoneName") || {}).value || ""; } catch (e) { return ""; }
+    try { return (new Intl.DateTimeFormat(uiLocale(), { timeZoneName: "long" }).formatToParts(d || new Date()).find(p => p.type === "timeZoneName") || {}).value || ""; } catch (e) { return ""; }
   }
   function tzNote(d) { const n = tzName(d); return n ? `Times in your time zone: ${n}` : "Times in your time zone"; }
-  function fmtDate(d, o) { return d.toLocaleDateString([], o || { weekday: "long", month: "long", day: "numeric" }); }
+  function fmtDate(d, o) { return d.toLocaleDateString(uiLocale(), o || { weekday: "long", month: "long", day: "numeric" }); }
   function fmtCountdown(ms) {
     if (ms < 0) ms = 0;
     const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -553,9 +559,11 @@
   /* ---------------- Languages ----------------
      Pages are written in English. Each language file (assets/i18n/xx.json) maps English text to its
      translation, so no HTML has to change. Keys may hold {placeholders}, like "{p} in {t}", for text
-     that includes a name or number. Anything without a translation simply stays in English. */
+     that includes a name or number. Anything without a translation simply stays in English.
+     Only languages marked ready: true are offered. Mark one ready once assets/i18n/<id>.json exists and a
+     fluent speaker has checked it, and add its id to the list in boot.js. */
   const LANGS = [
-    { id: "en", name: "English", en: "English" },
+    { id: "en", name: "English", en: "English", ready: true },
     { id: "ar", name: "العربية", en: "Arabic", rtl: true, font: "Noto+Sans+Arabic:wght@400;500;600;700;800", family: "Noto Sans Arabic" },
     { id: "ur", name: "اردو", en: "Urdu", rtl: true, font: "Noto+Nastaliq+Urdu:wght@400;500;600;700", family: "Noto Nastaliq Urdu" },
     { id: "bn", name: "বাংলা", en: "Bengali", font: "Noto+Sans+Bengali:wght@400;500;600;700;800", family: "Noto Sans Bengali" },
@@ -563,11 +571,13 @@
     { id: "fr", name: "Français", en: "French" },
     { id: "es", name: "Español", en: "Spanish" }
   ];
+  // A saved choice of a language that isn't ready is kept, and used once that language is ready.
+  const READY = LANGS.filter(l => l.ready);
   function deviceLang() {
     const want = (navigator.languages || [navigator.language || "en"]).map(l => String(l).slice(0, 2).toLowerCase());
-    return (want.find(l => LANGS.some(x => x.id === l))) || "en";
+    return (want.find(l => READY.some(x => x.id === l))) || "en";
   }
-  const langOf = () => LANGS.find(l => l.id === (prefs.lang || deviceLang())) || LANGS[0];
+  const langOf = () => READY.find(l => l.id === (prefs.lang || deviceLang())) || READY.find(l => l.id === deviceLang()) || LANGS[0];
 
   let dict = {}, patterns = [], dictLang = "en";
   const seen = new WeakMap();          // node -> { o: English, t: what we wrote }
@@ -657,7 +667,7 @@
     const old = document.getElementById("mh-langmenu"); if (old) { old.remove(); return; }
     const cur = langOf().id, m = document.createElement("div");
     m.id = "mh-langmenu"; m.className = "lang-menu"; m.setAttribute("role", "menu");
-    m.innerHTML = LANGS.map(l => `<button type="button" role="menuitemradio" aria-checked="${l.id === cur}" data-l="${l.id}" lang="${l.id}" translate="no"><span>${l.name}</span>${l.id !== "en" ? `<small>${l.en}</small>` : ""}</button>`).join("");
+    m.innerHTML = READY.map(l => `<button type="button" role="menuitemradio" aria-checked="${l.id === cur}" data-l="${l.id}" lang="${l.id}" translate="no"><span>${l.name}</span>${l.id !== "en" ? `<small>${l.en}</small>` : ""}</button>`).join("");
     anchor.after(m);
     m.querySelector('[aria-checked="true"]').focus();
     m.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; m.remove(); setPrefs({ lang: b.dataset.l }); };
@@ -691,7 +701,7 @@
       ${backBtn}<a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
       <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}</a>`).join("")}</nav>
       <div class="tools">
-        <button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>
+        ${READY.length > 1 ? `<button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>` : ""}
         <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${icon("text")}</button>
         <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}</button>
         <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false" aria-controls="mh-links">${icon("menu")}</button>
@@ -736,7 +746,8 @@
       const fromHere = document.referrer && new URL(document.referrer).origin === location.origin;
       if (fromHere && history.length > 1) history.back(); else location.href = "index.html";
     };
-    header.querySelector("#mh-lang").onclick = e => openLangMenu(e.currentTarget);
+    const langBtn = header.querySelector("#mh-lang");
+    if (langBtn) langBtn.onclick = e => openLangMenu(e.currentTarget);
     header.querySelector("#mh-text").onclick = () => {
       const next = { md: "lg", lg: "xl", xl: "md" }[prefs.text] || "lg";
       setPrefs({ text: next });
@@ -817,7 +828,8 @@
   // openSettings({step:"loc"}) -> jump straight to one step
   function openSettings(arg) {
     const welcome = arg === true;
-    const steps = welcome ? ["lang", "loc", "school", "age", "interests"] : ["lang", "loc", "school", "age", "interests", "display"];
+    const steps = (welcome ? ["lang", "loc", "school", "age", "interests"] : ["lang", "loc", "school", "age", "interests", "display"])
+      .filter(s => s !== "lang" || READY.length > 1);
     let i = Math.max(0, steps.indexOf(arg && arg.step));
     const draft = JSON.parse(JSON.stringify(prefs));
     let searchTimer = null, searchToken = 0;
@@ -838,7 +850,7 @@
       lang: () => `
         <h2 id="sh-title">Choose your language</h2>
         <p class="intro">You can change this any time with the globe button at the top.</p>
-        <div class="choices two" id="sh-lang">${LANGS.map(l => `<button type="button" class="choice" data-v="${l.id}" aria-pressed="${langOf().id === l.id}" lang="${l.id}" translate="no">
+        <div class="choices two" id="sh-lang">${READY.map(l => `<button type="button" class="choice" data-v="${l.id}" aria-pressed="${langOf().id === l.id}" lang="${l.id}" translate="no">
           <span><span class="c-t">${l.name}</span>${l.id !== "en" ? `<span class="c-d">${l.en}</span>` : ""}</span><span class="c-check">${icon("check")}</span></button>`).join("")}</div>`,
       loc: () => `
         <h2 id="sh-title">Where do you pray?</h2>
@@ -1007,7 +1019,7 @@
     get prefs() { return prefs; }, setPrefs, onPrefs, store,
     METHODS, PRAYERS, prayerTimes, todayTimes, nextPrayer, qiblaBearing, KAABA, distanceKm, fmtDistance, compassWord,
     hijri, fmtHijri, HIJRI_MONTHS, ISLAMIC_DAYS, islamicDay, upcomingIslamicDays,
-    fmtTime, fmtTimeHtml, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
+    uiLocale, fmtTime, fmtTimeHtml, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
     occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
     openSettings, toast, icon, LOGO, installCard

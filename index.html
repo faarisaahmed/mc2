@@ -215,7 +215,7 @@
     top.sort((a, b) => a.start - b.start);
     homeEvents = top;
     $("home-events").innerHTML = top.map(e => `<div class="card mini-card"><a class="mini-ev" href="events.html?ev=${encodeURIComponent(e.key)}">
-      <div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
+      <div class="date-badge"><div class="m">${e.start.toLocaleDateString(MH.uiLocale(), { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
       <div><div style="font-weight:700;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>
       ${MH.eventActions(e)}</div>`).join("")
       + `<p class="small muted center" style="margin:4px 0 0">${MH.prefs.age || MH.prefs.interests.length ? "Picked for you" : "Tip: open Settings to see events picked for you"}</p>`;

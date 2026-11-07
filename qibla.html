@@ -74,7 +74,7 @@
     bearing = MH.qiblaBearing(loc.lat, loc.lng);
     $("where").textContent = `From ${loc.name}`;
     $("kaaba-mark").setAttribute("transform", `rotate(${bearing} 150 150)`);
-    $("dist").textContent = `${Math.round(MH.distanceKm(loc, MH.KAABA) * 0.621371).toLocaleString()} mi`;
+    $("dist").textContent = `${Math.round(MH.distanceKm(loc, MH.KAABA) * 0.621371).toLocaleString(MH.uiLocale())} mi`;
     update();
   }
 
