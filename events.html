@@ -58,6 +58,14 @@
     interests: params.get("interest") ? [params.get("interest")] : [],
     sort: "foryou", range: 14, q: "", hideDaily: false
   };
+  // A shared link (events.html?ev=<id><yyyy-mm-dd>) opens with every age shown and a range that reaches the event.
+  let focusKey = params.get("ev") || location.hash.slice(1);
+  const evDate = /(\d{4}-\d{2}-\d{2})$/.exec(params.get("ev") || "");
+  if (evDate) {
+    state.age = "";
+    const days = (MH.parseYmd(evDate[1]) - new Date()) / 86400000;
+    state.range = days < 7 ? 7 : days < 14 ? 14 : 31;
+  }
   const ROUTINE = ["jumuah", "fajr-halaqa", "isha-halaqa"];
   let current = [];
 
@@ -93,11 +101,11 @@
         return `<h3 style="margin:28px 0 12px;font-size:1.3rem">${isToday ? "Today" : MH.fmtDate(d)} <span class="muted small" style="font-weight:400">· ${MH.fmtHijri(d)}</span></h3><div class="grid">${byDay[k].map(card).join("")}</div>`;
       }).join("");
     }
-    if (location.hash) { const el = document.getElementById(location.hash.slice(1)); if (el) { el.style.boxShadow = "0 0 0 3px var(--gold)"; el.scrollIntoView({ block: "center" }); } }
+    if (focusKey) { const el = document.getElementById(focusKey); if (el) { el.style.boxShadow = "0 0 0 3px var(--gold)"; el.scrollIntoView({ block: "center" }); } focusKey = null; }
   }
 
   function card(e) {
-    const aud = MH.audienceLabel(e);
+    const aud = MH.audienceLabel(e), links = MH.eventLinks(e);
     const match = e.score >= 75 ? `<span class="pill gold match">${MH.icon("star")} Great match</span>` : "";
     return `<article class="card ev" id="${e.key}">
       ${match}
@@ -108,11 +116,34 @@
       <div class="meta">${MH.icon("pin")}<span>${MH.esc(e.place)}${e.cost ? " · " + MH.esc(e.cost) : ""}</span></div>
       ${e.sample ? `<div class="meta">${MH.icon("clock")}<span>${e.after ? "Time follows " + e.after[0].toUpperCase() + e.after.slice(1) + " prayer" : "Sample time"}. Confirm with the mosque.</span></div>` : ""}
       <div class="tags"><span class="pill">${MH.ageLabel(e)}</span>${aud ? `<span class="pill gold">${aud}</span>` : ""}${e.interests.filter(i => !(aud && i === "sisters")).map(i => `<span class="pill gray">${MH.interestName(i)}</span>`).join("")}</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn sm ghost" data-ics="${e.key}">${MH.icon("plus")} Add to calendar</button>
+      <div class="ev-actions">
+        <button type="button" class="btn sm ghost" data-menu="cal-${e.key}" aria-expanded="false" aria-controls="cal-${e.key}">${MH.icon("calendar")} Add to calendar</button>
+        <button type="button" class="btn sm ghost" data-menu="share-${e.key}" aria-expanded="false" aria-controls="share-${e.key}">${MH.icon("share")} Share</button>
         <a class="btn sm ghost" href="planner.html?add=${encodeURIComponent(e.key)}&date=${MH.ymd(e.start)}">Plan my day around it</a>
+        <div class="pop-menu" id="cal-${e.key}" role="group" aria-label="Add to calendar" hidden>
+          <a href="${MH.esc(links.google)}" target="_blank" rel="noopener">${MH.icon("globe")} Google Calendar</a>
+          <button type="button" data-ics="${e.key}">${MH.icon("calendar")} Apple, Outlook and others (.ics file)</button>
+        </div>
+        <div class="pop-menu" id="share-${e.key}" role="group" aria-label="Share" hidden>
+          <a href="${MH.esc(links.whatsapp)}" target="_blank" rel="noopener">${MH.icon("chat")} WhatsApp</a>
+          <button type="button" data-copy="${e.key}">${MH.icon("link")} Copy link</button>
+          ${navigator.share ? `<button type="button" data-share="${e.key}">${MH.icon("share")} More apps…</button>` : ""}
+        </div>
       </div>
     </article>`;
+  }
+
+  // Calendar and share menus: one open at a time; Escape or a click elsewhere closes it.
+  function closeMenus(except) {
+    document.querySelectorAll(".pop-menu:not([hidden])").forEach(m => {
+      if (m === except) return;
+      m.hidden = true;
+      const b = document.querySelector(`[data-menu="${m.id}"]`); if (b) b.setAttribute("aria-expanded", "false");
+    });
+  }
+  async function copyLink(url) {
+    try { await navigator.clipboard.writeText(url); MH.toast("Link copied"); }
+    catch (err) { window.prompt("Copy this link:", url); }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -126,9 +157,27 @@
     $("q").oninput = e => { state.q = e.target.value; render(); };
     $("hide-daily").onchange = e => { state.hideDaily = e.target.checked; render(); };
     $("list").addEventListener("click", e => {
-      const b = e.target.closest("[data-ics]"); if (!b) return;
-      const ev = current.find(x => x.key === b.dataset.ics);
-      if (ev) { MH.download(ev.id + ".ics", MH.icsFor([ev]), "text/calendar"); MH.toast("Calendar file downloaded"); }
+      const toggle = e.target.closest("[data-menu]");
+      if (toggle) {
+        const menu = $(toggle.dataset.menu), open = menu.hidden;
+        closeMenus(menu);
+        menu.hidden = !open; toggle.setAttribute("aria-expanded", String(open));
+        if (open) menu.querySelector("a, button").focus();
+        return;
+      }
+      const b = e.target.closest(".pop-menu a, .pop-menu button"); if (!b) return;
+      const ev = current.find(x => x.key === (b.dataset.ics || b.dataset.copy || b.dataset.share));
+      closeMenus();
+      if (!ev) return;   // a plain link (Google Calendar, WhatsApp) opens by itself
+      if (b.dataset.ics) { MH.download(ev.id + ".ics", MH.icsFor([ev]), "text/calendar"); MH.toast("Calendar file downloaded"); }
+      else if (b.dataset.copy) copyLink(MH.eventLinks(ev).url);
+      else if (b.dataset.share) { const l = MH.eventLinks(ev); navigator.share({ title: ev.title, text: l.text, url: l.url }).catch(() => {}); }
+    });
+    document.addEventListener("click", e => { if (!e.target.closest(".ev-actions")) closeMenus(); });
+    document.addEventListener("keydown", e => {
+      if (e.key !== "Escape") return;
+      const open = document.querySelector(".pop-menu:not([hidden])"); if (!open) return;
+      closeMenus(); const b = document.querySelector(`[data-menu="${open.id}"]`); if (b) b.focus();
     });
     $("ics").onclick = () => { MH.download("masjidhub-events.ics", MH.icsFor(current), "text/calendar"); MH.toast(`${current.length} events downloaded`); };
     MH.onPrefs(render);
