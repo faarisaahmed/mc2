@@ -177,7 +177,9 @@
   /* ---------------- Formatting ---------------- */
   function fmtTime(d) {
     if (!d || isNaN(d)) return "--:--";
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" });
+    const s = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" });
+    // In right-to-left pages, "9:00 AM" would show as "AM 9:00": isolate it as left-to-right text (LRI … PDI).
+    return document.documentElement.dir === "rtl" ? "⁦" + s + "⁩" : s;
   }
   function fmtDate(d, o) { return d.toLocaleDateString([], o || { weekday: "long", month: "long", day: "numeric" }); }
   function fmtCountdown(ms) {
