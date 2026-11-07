@@ -82,3 +82,12 @@ self.addEventListener("fetch", event => {
   else if (CDN_HOSTS.includes(url.hostname)) event.respondWith(savedFirst(request));
   // Anything else goes straight to the network, unchanged.
 });
+
+// Tapping an adhan reminder brings MasjidHub to the front, or opens the prayer times page.
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    const open = list.find(c => "focus" in c);
+    return open ? open.focus() : self.clients.openWindow("prayer.html");
+  }));
+});
