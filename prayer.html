@@ -55,8 +55,8 @@
         </div>
         <div class="panel">
           <h3 style="margin:0 0 4px;font-size:1.2rem">Adhan reminders</h3>
-          <p class="small muted" style="margin:0 0 12px">Get a notification at each prayer time while this page is open.</p>
-          <button class="btn sm" id="notify">Turn on reminders</button>
+          <p class="small muted" style="margin:0 0 12px">Get a notification at each prayer time while MasjidHub is open.</p>
+          <button class="btn sm" id="notify" aria-pressed="false">Turn on reminders</button>
         </div>
         <div class="panel">
           <h3 style="margin:0 0 4px;font-size:1.2rem">Day length</h3>
@@ -81,8 +81,25 @@
 <script>
 (function () {
   const $ = id => document.getElementById(id);
-  let dayOff = 0, monthOff = 0, notifyOn = false;
-  const fired = new Set();
+  let dayOff = 0, monthOff = 0;
+  // Reminders stay on across visits until switched off (and only while notifications are allowed).
+  let notifyOn = MH.store.get("notify", false) && "Notification" in window && Notification.permission === "granted";
+  const REMIND_WINDOW = 5 * 60000;   // phones slow down timers in the background, so allow a few minutes' delay
+
+  // Android Chrome and installed apps only allow notifications through the service worker.
+  async function showReminder(title, body) {
+    const opts = { body, icon: "assets/img/icon-192.png", badge: "assets/img/icon-192.png", tag: "masjidhub-adhan" };
+    try {
+      const reg = "serviceWorker" in navigator && await navigator.serviceWorker.getRegistration();
+      if (reg) return await reg.showNotification(title, opts);
+      new Notification(title, opts);
+    } catch (e) { MH.toast(title); }
+  }
+  function renderNotify() {
+    const b = $("notify");
+    b.setAttribute("aria-pressed", notifyOn);
+    b.textContent = notifyOn ? "Reminders are on. Turn off" : "Turn on reminders";
+  }
 
   function renderHead() {
     const now = new Date(), next = MH.nextPrayer(now), p = MH.prefs;
@@ -133,9 +150,10 @@
       const t = MH.todayTimes(now);
       MH.PRAYERS.filter(p => !p.notPrayer).forEach(p => {
         const k = MH.ymd(now) + p.id, diff = now - t[p.id];
-        if (diff >= 0 && diff < 60000 && !fired.has(k)) {
-          fired.add(k);
-          try { new Notification(`It's time for ${p.t}`, { body: `${p.t} began at ${MH.fmtTime(t[p.id])} in ${MH.prefs.loc.name}.`, icon: "assets/img/icon.svg" }); } catch (e) { MH.toast(`It's time for ${p.t}`); }
+        // The last reminder is remembered, so reloading the page doesn't repeat it.
+        if (diff >= 0 && diff < REMIND_WINDOW && MH.store.get("notify-last", "") !== k) {
+          MH.store.set("notify-last", k);
+          showReminder(`It's time for ${p.t}`, `${p.t} began at ${MH.fmtTime(t[p.id])} in ${MH.prefs.loc.name}.`);
         }
       });
     }
@@ -157,12 +175,15 @@
     $("prev-m").onclick = () => { monthOff--; renderMonth(); };
     $("next-m").onclick = () => { monthOff++; renderMonth(); };
     $("print").onclick = () => window.print();
-    $("notify").onclick = async e => {
-      if (!("Notification" in window)) return MH.toast("This browser doesn't support notifications.");
+    renderNotify();
+    $("notify").onclick = async () => {
+      if (notifyOn) { notifyOn = false; MH.store.set("notify", false); renderNotify(); return MH.toast("Reminders are off."); }
+      // iPhones only allow notifications once MasjidHub is added to the Home Screen.
+      if (!("Notification" in window)) return MH.toast("This browser can't show notifications. On iPhone, add MasjidHub to your Home Screen first.");
       const perm = await Notification.requestPermission();
       notifyOn = perm === "granted";
-      e.target.textContent = notifyOn ? "Reminders are on" : "Turn on reminders";
-      MH.toast(notifyOn ? "You'll be reminded at each prayer while this tab is open." : "Notifications were blocked in your browser settings.");
+      MH.store.set("notify", notifyOn); renderNotify();
+      MH.toast(notifyOn ? "You'll be reminded at each prayer while MasjidHub is open." : "Notifications are blocked. Allow them in your browser settings.");
     };
   });
 })();
