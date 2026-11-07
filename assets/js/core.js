@@ -681,8 +681,12 @@
     const section = NAV.find(g => g.pages.some(p => p[0] === here) || (g.also || []).includes(here));
     const header = document.createElement("header");
     header.className = "gnav";
+    // The app installed on an iPhone has no back button of its own (Android has the system back gesture).
+    const iosApp = navigator.standalone === true && here !== "index.html";
+    const backBtn = iosApp ? `<button class="icon-btn back-btn" id="mh-back" type="button" aria-label="Back">${icon("back")}</button>` : "";
+    if (iosApp) header.classList.add("has-back");
     header.innerHTML = `<div class="wrap">
-      <a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
+      ${backBtn}<a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
       <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}</a>`).join("")}</nav>
       <div class="tools">
         <button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>
@@ -726,6 +730,10 @@
       e.currentTarget.innerHTML = icon(o ? "close" : "menu");
     };
     header.querySelector("#mh-settings").onclick = () => openSettings();
+    if (iosApp) header.querySelector("#mh-back").onclick = () => {
+      const fromHere = document.referrer && new URL(document.referrer).origin === location.origin;
+      if (fromHere && history.length > 1) history.back(); else location.href = "index.html";
+    };
     header.querySelector("#mh-lang").onclick = e => openLangMenu(e.currentTarget);
     header.querySelector("#mh-text").onclick = () => {
       const next = { md: "lg", lg: "xl", xl: "md" }[prefs.text] || "lg";
@@ -737,10 +745,10 @@
     foot.className = "gfoot";
     foot.innerHTML = `<div class="wrap">
       <div class="cols">
-        <div><h5>Pray</h5><a href="prayer.html">Prayer Times</a><a href="qibla.html">Qibla Finder</a><a href="calendar.html">Islamic Calendar</a></div>
-        <div><h5>Connect</h5><a href="events.html">Events</a><a href="community.html">Community</a><a href="planner.html">AI Day Planner</a></div>
-        <div><h5>Mosques</h5><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a></div>
-        <div><h5>Give</h5><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
+        <div><h2>Pray</h2><a href="prayer.html">Prayer Times</a><a href="qibla.html">Qibla Finder</a><a href="calendar.html">Islamic Calendar</a></div>
+        <div><h2>Connect</h2><a href="events.html">Events</a><a href="community.html">Community</a><a href="planner.html">AI Day Planner</a></div>
+        <div><h2>Mosques</h2><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a></div>
+        <div><h2>Give</h2><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
       </div>
       <div class="legal"><span>MasjidHub demo for the Muslim Center of Greater Princeton. MCGP details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span>Mosque data © OpenStreetMap contributors · Map tiles © Esri</span></div>
     </div>`;
