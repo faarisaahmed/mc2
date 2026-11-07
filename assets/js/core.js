@@ -27,9 +27,21 @@
     lang: null,            // null = follow the device; otherwise a LANGS code
     onboarded: false
   };
+  // One-time upgrades for saved prefs. PREFS_MIGRATIONS[n] turns version n into n + 1, so each
+  // step runs once per visitor. To change stored prefs: add step PREFS_VERSION, then bump PREFS_VERSION.
+  // Never rewrite an old step, and never reset a setting the visitor may have chosen.
+  const PREFS_MIGRATIONS = {
+    // 1 -> 2: Hanafi became the default Asr. Earlier visitors never chose it on purpose, so move them over once.
+    1: p => { p.asr = "hanafi"; }
+  };
   const saved = store.get("prefs", {});
-  // v2 made Hanafi the default Asr. Earlier visitors never chose it on purpose, so move them over once.
-  if (saved.v !== PREFS_VERSION) { saved.asr = "hanafi"; saved.v = PREFS_VERSION; }
+  const savedV = typeof saved.v === "number" ? saved.v : 1;   // prefs saved before versioning count as v1
+  if (savedV < PREFS_VERSION) {
+    const hadPrefs = Object.keys(saved).length > 0;
+    for (let n = savedV; n < PREFS_VERSION; n++) if (PREFS_MIGRATIONS[n]) PREFS_MIGRATIONS[n](saved);
+    saved.v = PREFS_VERSION;
+    if (hadPrefs) store.set("prefs", saved);  // save so the steps never run again
+  }
   let prefs = Object.assign({}, DEFAULT_PREFS, saved);
   const listeners = [];
   function setPrefs(patch) {
