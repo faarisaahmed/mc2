@@ -55,7 +55,7 @@ The demo is built around the **[Muslim Center of Greater Princeton (MCGP)](https
   <tr>
     <td width="33%" valign="top">
       <h3>Accurate prayer times</h3>
-      Calculated in the browser for any location. Checked against the Aladhan API across 136 city, season, and method combinations. Hanafi Asr by default.
+      Calculated in the browser for any location. Checked against the Aladhan API for every day of a year, in 10 cities, with every method. Hanafi Asr by default.
     </td>
     <td width="33%" valign="top">
       <h3>Events for every age</h3>
@@ -122,9 +122,10 @@ Prayer times are the part that matters most, so every number was checked against
 
 **Prayer times**
 - Calculated in the browser with the standard astronomical method most prayer apps use: sun declination and the equation of time, twilight angles for Fajr and Isha, and shadow length for Asr. See `prayerTimes()` in `assets/js/core.js`.
-- Checked against the [Aladhan API](https://aladhan.com/prayer-times-api) for **136 combinations**: 5 cities (West Windsor, London, Karachi, Sydney, Oslo) × 4 seasons × 7 methods × both Asr schools.
-  - Fajr, Sunrise, Dhuhr, Maghrib, and Isha **matched to the minute in every case**.
-  - Asr matched in West Windsor. In a few far-from-equator cases it differed from Aladhan by 2 to 3 minutes, and an independent high-precision check (NOAA solar equations) found MasjidHub was the closer one. Example: London, 24 Oct 2026. Precise Asr 15:17:50, MasjidHub 15:18, Aladhan 15:20.
+- Checked against the [Aladhan API](https://aladhan.com/prayer-times-api) for **every day of 2027**: 10 cities (West Windsor, Los Angeles, Toronto, London, Oslo, Cairo, Makkah, Karachi, Jakarta, Sydney) × all 7 methods with Hanafi Asr, plus ISNA with standard Asr. 175,200 times in all.
+  - Fajr, Sunrise, Dhuhr, and Maghrib **matched to the minute every day**. Isha matched too, apart from two Aladhan quirks: it labels summer Isha in Oslo (about midnight) with the wrong date, and on Eid al-Fitr it still uses the Ramadan Isha gap.
+  - Umm al-Qura Isha is 90 minutes after Maghrib, and 120 minutes in Ramadan, as Aladhan does.
+  - Asr was within a minute of Aladhan 99% of the time, up to 5 minutes apart at high latitudes. An independent high-precision check (NOAA solar equations) found MasjidHub was the closer one: never more than 0.83 minutes from the precise time, against up to 5 minutes for Aladhan.
 - High latitudes use the angle-based rule, the same default Aladhan uses.
 - The site shows **adhan (start) times**. Iqamah is set by each mosque, so the site reminds people to confirm with their masjid.
 
