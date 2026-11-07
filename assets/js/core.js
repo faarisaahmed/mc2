@@ -165,13 +165,17 @@
   // Next prayer (skips sunrise). Returns {id, t, ar, time, prevTime}.
   function nextPrayer(now) {
     now = now || new Date();
-    const today = todayTimes(now);
     const order = PRAYERS.filter(p => !p.notPrayer);
-    for (let i = 0; i < order.length; i++) {
-      if (today[order[i].id] > now) return Object.assign({}, order[i], { time: today[order[i].id] });
+    // Times are for the chosen place's day, shown on the phone's clock. For a place far east or west
+    // its day is shifted, so look from yesterday to two days ahead for the first time still to come.
+    // "Tomorrow" means by the phone's own date.
+    for (let off = -1; off <= 2; off++) {
+      const d = new Date(now); d.setDate(d.getDate() + off);
+      const t = todayTimes(d);
+      const p = order.find(x => t[x.id] > now);
+      if (p) return Object.assign({}, p, { time: t[p.id], tomorrow: ymd(t[p.id]) !== ymd(now) });
     }
-    const tm = new Date(now); tm.setDate(tm.getDate() + 1);
-    return Object.assign({}, order[0], { time: todayTimes(tm).fajr, tomorrow: true });
+    return Object.assign({}, order[0], { time: todayTimes(now).fajr });
   }
 
   /* ---------------- Formatting ---------------- */
@@ -181,6 +185,12 @@
     // In right-to-left pages, "9:00 AM" would show as "AM 9:00": isolate it as left-to-right text (LRI … PDI).
     return document.documentElement.dir === "rtl" ? "⁦" + s + "⁩" : s;
   }
+  // Times are always shown on the phone's clock. That can differ from the chosen place's own clock
+  // (e.g. Makkah picked on a phone in New Jersey), so pages say which time zone they use.
+  function tzName(d) {
+    try { return (new Intl.DateTimeFormat([], { timeZoneName: "long" }).formatToParts(d || new Date()).find(p => p.type === "timeZoneName") || {}).value || ""; } catch (e) { return ""; }
+  }
+  function tzNote(d) { const n = tzName(d); return n ? `Times in your time zone: ${n}` : "Times in your time zone"; }
   function fmtDate(d, o) { return d.toLocaleDateString([], o || { weekday: "long", month: "long", day: "numeric" }); }
   function fmtCountdown(ms) {
     if (ms < 0) ms = 0;
@@ -917,7 +927,7 @@
     get prefs() { return prefs; }, setPrefs, onPrefs, store,
     METHODS, PRAYERS, prayerTimes, todayTimes, nextPrayer, qiblaBearing, KAABA, distanceKm, fmtDistance, compassWord,
     hijri, fmtHijri, HIJRI_MONTHS, ISLAMIC_DAYS, islamicDay, upcomingIslamicDays,
-    fmtTime, fmtDate, fmtCountdown, ymd, parseYmd, esc,
+    fmtTime, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
     occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
     openSettings, toast, icon, LOGO

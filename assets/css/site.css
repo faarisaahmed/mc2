@@ -138,6 +138,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .title{font-size:clamp(1.85rem,4.3vw,2.9rem);line-height:1.1;letter-spacing:-.03em;font-weight:800;margin:0}
 .lead{font-size:clamp(1.08rem,2vw,1.4rem);line-height:1.4;color:var(--muted);margin:12px 0 0;font-weight:400}
 .dark .lead{color:#c9d8ce}
+.tz-note{font-size:.85rem;margin:8px 0 0}.dark .tz-note{color:#c9d8ce}
 .arabic{font-family:var(--arabic);direction:rtl}
 .muted{color:var(--muted)}
 .small{font-size:.875rem}
