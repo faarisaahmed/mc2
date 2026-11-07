@@ -61,7 +61,7 @@
     ISNA:    { t: "ISNA (North America)",            fajr: 15,   isha: 15 },
     MWL:     { t: "Muslim World League",             fajr: 18,   isha: 17 },
     Egypt:   { t: "Egyptian General Authority",      fajr: 19.5, isha: 17.5 },
-    Makkah:  { t: "Umm al-Qura, Makkah",             fajr: 18.5, ishaMin: 90 },
+    Makkah:  { t: "Umm al-Qura, Makkah",             fajr: 18.5, ishaMin: 90, ishaMinRamadan: 120 },
     Karachi: { t: "University of Islamic Sciences, Karachi", fajr: 18, isha: 18 },
     Tehran:  { t: "Institute of Geophysics, Tehran", fajr: 17.7, isha: 14, maghrib: 4.5 },
     Jafari:  { t: "Shia Ithna-Ashari (Jafari)",      fajr: 16,   isha: 14, maghrib: 4 }
@@ -129,7 +129,8 @@
         maghrib: m.maghrib ? sunAngleTime(m.maghrib, p.maghrib) : sunAngleTime(0.833, p.sunset),
         isha: m.ishaMin ? NaN : sunAngleTime(m.isha, p.isha)
       };
-      if (m.ishaMin) t.isha = t.maghrib + m.ishaMin / 60;
+      // Umm al-Qura: Isha is 90 min after Maghrib, 120 min in Ramadan (same as Aladhan).
+      if (m.ishaMin) t.isha = t.maghrib + (m.ishaMinRamadan && hijri(date).month === 9 ? m.ishaMinRamadan : m.ishaMin) / 60;
     }
 
     // High latitudes: when twilight never reaches the angle, use the angle-based night portion.
