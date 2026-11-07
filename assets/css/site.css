@@ -199,6 +199,15 @@ button,input,select,textarea{font:inherit;color:inherit}
 .quick .q-ic svg{width:28px;height:28px}
 @media (max-width:900px){.quick{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:480px){.quick{grid-template-columns:repeat(2,1fr)}.quick a{min-height:116px}}
+/* "Get the app" card on the home page (core.js installCard) */
+.install-card{display:flex;align-items:center;gap:14px;margin-top:16px;padding-block:12px;padding-inline:18px 8px;border-radius:20px;background:var(--soft-green);color:var(--soft-green-ink)}
+.install-ic{flex:none;display:flex}.install-ic svg{width:28px;height:28px}
+.install-txt{flex:1;min-width:0;margin:0;display:flex;flex-direction:column;gap:2px;line-height:1.4}
+.install-txt span{font-size:.92rem}
+.install-txt .ic{margin-inline:2px}
+.install-card .btn{flex:none}
+.install-card .install-x{flex:none;color:inherit}
+@media (hover:hover){.install-card .install-x:hover{background:rgba(0,0,0,.06);color:inherit}}
 
 /* Prayer strip */
 .prayer-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;max-width:880px;margin:34px auto 0;padding:0 0 56px}
