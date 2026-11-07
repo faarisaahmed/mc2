@@ -22,8 +22,8 @@
 <main>
   <section class="tile dark" style="padding:52px 22px 56px">
     <p class="eyebrow">For mosques</p>
-    <h2 class="headline" style="font-size:clamp(2.2rem,5.6vw,3.8rem)">Your masjid deserves an app.<br>Now it has one.</h2>
-    <p class="lead">Prayer times, events, and donations in one beautiful place. Free, and ready in minutes.</p>
+    <h2 class="headline" style="font-size:clamp(2.2rem,5.6vw,3.8rem)">Your masjid deserves an app.</h2>
+    <p class="lead">Prayer times, events, and giving in one simple place, for every age in your community.</p>
     <div class="cta-row"><a class="btn gold" href="#apply">Apply now</a></div>
   </section>
 
@@ -32,7 +32,7 @@
       <div class="card"><h3><i data-ic="pin"></i>On the map</h3><p class="muted">People nearby find you, get directions, and see your next prayer.</p></div>
       <div class="card"><h3><i data-ic="calendar"></i>Events that reach the right people</h3><p class="muted">Tag each event by age and interest, and it shows up for the people it's meant for.</p></div>
       <div class="card"><h3><i data-ic="heart"></i>Simple giving</h3><p class="muted">Show your causes and link your existing donation provider.</p></div>
-      <div class="card"><h3><i data-ic="mosque"></i>Free for mosques</h3><p class="muted">No setup fees. No tech team needed. Your volunteers can update it from a phone.</p></div>
+      <div class="card"><h3><i data-ic="mosque"></i>No tech team needed</h3><p class="muted">Your mosque doesn't need its own website team. A simple page for volunteers to update times and events is on the way.</p></div>
     </div>
   </section>
 
@@ -40,6 +40,7 @@
     <div class="wrap-narrow">
       <div class="section-head" style="text-align:center"><p class="eyebrow">Application</p><h2 class="title">Tell us about your mosque.</h2><p class="lead">Takes about 3 minutes.</p></div>
       <form class="panel" id="form" novalidate>
+        <div class="notice" style="margin-bottom:18px"><i data-ic="flask"></i><span><strong>Demo:</strong> your application is saved only in this browser and shows on your map as “pending”. Nothing is sent, so nobody will contact you yet.</span></div>
         <h3 style="margin:0 0 14px">1 · The mosque</h3>
         <div class="field"><label for="name">Mosque name *</label><input type="text" id="name" required autocomplete="organization"></div>
         <div class="field"><label for="address">Street address *</label><input type="text" id="address" required autocomplete="street-address" placeholder="123 Main St, City, State ZIP"><span class="hint" id="geo-hint">We'll place it on the map from this address.</span></div>
@@ -59,12 +60,11 @@
           <div class="field"><label for="contact">Your name *</label><input type="text" id="contact" required autocomplete="name"></div>
           <div class="field"><label for="role">Your role *</label><select id="role" required><option value="">Choose…</option><option>Imam</option><option>Board member</option><option>Administrator</option><option>Volunteer</option><option>Community member</option></select></div>
         </div>
-        <div class="field"><label for="email">Email *</label><input type="email" id="email" required autocomplete="email"><span class="hint">We'll contact you here to verify the mosque.</span></div>
+        <div class="field"><label for="email">Email *</label><input type="email" id="email" required autocomplete="email"><span class="hint">In the full version, we'd contact you here to verify the mosque.</span></div>
         <div class="field"><label for="notes">Anything else?</label><textarea id="notes" placeholder="Programs, languages spoken, accessibility…"></textarea></div>
         <label style="display:flex;gap:10px;align-items:flex-start;margin:6px 0 18px"><input type="checkbox" id="ok" style="width:20px;height:20px;margin-top:2px;accent-color:var(--green)"> <span>I'm authorized to represent this mosque, or I'll share this with someone who is.</span></label>
         <p class="small" id="err" style="color:var(--danger);min-height:1.2em" role="alert"></p>
         <button class="btn gold" type="submit" id="submit" style="width:100%;min-height:54px;font-size:1.1rem">Submit application</button>
-        <p class="small muted" style="text-align:center;margin:12px 0 0">Demo: your application is saved in this browser and shows on the map as “pending”. Nothing is sent anywhere.</p>
       </form>
       <div id="mine" style="margin-top:24px"></div>
     </div>

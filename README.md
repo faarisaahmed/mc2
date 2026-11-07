@@ -105,7 +105,7 @@ The demo is built around the **[Muslim Center of Greater Princeton (MCGP)](https
 |---|---|
 | **Prayer times** | Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha for any location, with a live countdown, a monthly timetable, printing, and optional adhan notifications. |
 | **School of thought** | Hanafi by default (Asr when shadow = 2×), or Shafi'i, Maliki, and Hanbali (shadow = 1×). Seven Fajr and Isha methods: ISNA, MWL, Egypt, Umm al-Qura, Karachi, Tehran, and Jafari. |
-| **Qibla finder** | Great-circle bearing to the Kaaba and a live phone compass (iOS and Android) that says "turn left" or "turn right" and vibrates when you face the Qibla. Shows the distance to Makkah. |
+| **Qibla finder** | Great-circle bearing to the Kaaba and a live phone compass (iOS and Android) that says "turn left" or "turn right", and vibrates when you face the Qibla (Android; iPhones don't allow vibration from websites). Shows the distance to Makkah. |
 | **Events** | Adults, Teens, and Kids tabs (from the team's original sketch), plus Young adults and Seniors. Interest filters, a "Best for me" ranking, search, and `.ics` export. |
 | **AI Day Planner** | Understands schedules like "School 8 to 3, soccer at 4:30, homework after dinner, sleep at 10:30". Places every prayer in its valid window, handles Jumu'ah on Fridays, and suggests matching events. |
 | **Community** | Chat channels: General, Ask the Imam, Events & Carpools, Youth, Sisters, and Volunteers. |
