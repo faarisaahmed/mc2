@@ -98,8 +98,19 @@
     if ($("status").textContent.startsWith("Finding")) $("status").textContent = `${near} mosque${near === 1 ? "" : "s"} within about 20 miles`;
   }
 
+  // Website tags come from OpenStreetMap (anyone can edit) or a visitor's form. Many leave out
+  // "https://" or list several sites with ";". Keep the first, add https:// if needed, and allow
+  // only http(s), so a "javascript:" link can never run on this site.
+  function webUrl(raw) {
+    let u = String(raw || "").split(";")[0].trim();
+    if (!u) return "";
+    if (!/^[a-z][a-z\d+.-]*:/i.test(u) || /^[^:/]+:\d+(\/|$)/.test(u)) u = "https://" + u.replace(/^\/+/, "");
+    try { const x = new URL(u); return (x.protocol === "http:" || x.protocol === "https:") && /^[^.\s%]+(\.[^.\s%]+)+$/.test(x.hostname) ? x.href : ""; } catch (e) { return ""; }
+  }
+
   function popupHtml(m) {
-    const t = MH.prayerTimes(new Date(), m.lat, m.lng, MH.prefs), next = MH.PRAYERS.filter(p => !p.notPrayer).find(p => t[p.id] > new Date());
+    const site = webUrl(m.website);
+    const t =MH.prayerTimes(new Date(), m.lat, m.lng, MH.prefs), next = MH.PRAYERS.filter(p => !p.notPrayer).find(p => t[p.id] > new Date());
     return `<h4>${MH.esc(m.name)}</h4>
       ${m.hub ? '<span class="pill gold">On MasjidHub</span> ' : ""}${m.pending ? '<span class="pill gray">Application pending</span>' : ""}
       <div class="small muted" style="margin:6px 0">${MH.esc(m.address || "")}${m.address ? " · " : ""}${MH.fmtDistance(m.km)} away</div>
@@ -107,7 +118,7 @@
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
         <a class="btn sm" style="color:#fff" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}">Directions</a>
         ${m.hub && !m.pending ? `<a class="btn sm ghost" href="mosque.html?id=${m.id}">Visit page</a>` : ""}
-        ${m.website ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${MH.esc(m.website)}">Website</a>` : ""}
+        ${site ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${MH.esc(site)}">Website</a>` : ""}
         <button class="btn sm ghost" data-times="${m.id}">Use for times</button>
       </div>`;
   }
