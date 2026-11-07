@@ -347,10 +347,10 @@
   }
   function fitsAudience(ev, p) {
     p = p || prefs;
-    if (ev.audience === "all") return true;
-    if (p.gender === "male") return false;
-    if (ev.audience === "girls") return !p.age || p.age === "kids" || p.age === "teens" || p.gender === "female";
-    return true;
+    if (ev.audience === "brothers") return p.gender !== "female";
+    if (ev.audience === "sisters") return p.gender !== "male";
+    if (ev.audience === "girls") return p.gender !== "male" && (!p.age || p.age === "kids" || p.age === "teens" || p.gender === "female");
+    return true;   // "all", or anything unknown
   }
   // 0-100 relevance score for the current profile.
   function matchScore(ev, p) {
