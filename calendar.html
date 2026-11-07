@@ -103,7 +103,7 @@
       ${hd ? `<div class="notice" style="margin-top:12px"><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</div>` : ""}
       ${f ? `<div class="notice ${f.no ? "danger" : "green"}" style="margin-top:10px">${MH.icon(f.no ? "alert" : "moon")}<span>${MH.esc(f.t)}</span></div>` : ""}
       <table class="ptable" style="margin-top:8px">${MH.PRAYERS.map(p => `<tr><td style="padding:8px 4px;font-size:1rem">${p.t}</td><td class="t" style="padding:8px 4px;font-size:1rem">${MH.fmtTime(t[p.id])}</td></tr>`).join("")}</table>
-      ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html?ev=${encodeURIComponent(e.key)}" style="display:block;padding:6px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
+      ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html?ev=${encodeURIComponent(e.key)}" style="display:block;padding:10px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
   }
 
   function renderUpcoming() {
