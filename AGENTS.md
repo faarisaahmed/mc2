@@ -102,7 +102,8 @@ Every page loads scripts in this order:
 
 ### Privacy
 - No accounts, cookies, analytics, or tracking. User data stays in `localStorage` under `mh:` keys via `MH.store`.
-  Bump `PREFS_VERSION` in `core.js` when stored prefs need a migration.
+  When stored prefs need a migration, add a step to `PREFS_MIGRATIONS` in `core.js` and bump `PREFS_VERSION`.
+  Never reset a setting the visitor may have chosen.
 - Network calls only to the existing map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when the user uses those features.
 - Never commit API keys or secrets. Anything needing a key (e.g. a real AI planner) needs a server; propose it, don't hard-code it.
 
