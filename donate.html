@@ -85,7 +85,7 @@
   const $ = id => document.getElementById(id);
   const AMOUNTS = [10, 25, 50, 100, 250, 500];
   let mosque = MH_DATA.mosques[0], cause = "general", amount = 50, freq = "once";
-  const money = n => "$" + Math.round(n).toLocaleString();
+  const money = n => "$" + Math.round(n).toLocaleString(MH.uiLocale());
 
   function render() {
     $("causes").innerHTML = mosque.causes.map(c => `<label class="card cause${c.id === cause ? " on" : ""}">
@@ -129,7 +129,7 @@
     const nisab = grams * price;
     if (net < nisab) { $("z-out").innerHTML = `<span>Your zakatable wealth (<strong>${money(Math.max(0, net))}</strong>) is below the nisab of <strong>${money(nisab)}</strong>. No zakat is due, but sadaqah is always welcome.</span>`; return; }
     const due = net * 0.025;
-    $("z-out").innerHTML = `<span>Nisab: ${money(nisab)} · Your zakatable wealth: ${money(net)}<br><span style="font-size:1.6rem;font-weight:700">Zakat due: $${due.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><br><span class="small">Only if you've held at least the nisab for a full lunar year.</span></span>`;
+    $("z-out").innerHTML = `<span>Nisab: ${money(nisab)} · Your zakatable wealth: ${money(net)}<br><span style="font-size:1.6rem;font-weight:700">Zakat due: $${due.toLocaleString(MH.uiLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><br><span class="small">Only if you've held at least the nisab for a full lunar year.</span></span>`;
     $("z-give").style.display = "inline-flex";
     $("z-give").onclick = () => { cause = "zakat"; amount = Math.round(due); $("custom").value = amount; render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
   }

@@ -65,7 +65,7 @@
       <div class="wrap">
         <div class="section-head" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap"><div><p class="eyebrow">Next two weeks</p><h2 class="title">Upcoming at ${e(m.short)}</h2></div><a class="chev" href="events.html">All events</a></div>
         <div class="grid" id="mosque-events">${upcoming.map(x => `<div class="card"><a class="card-link" href="events.html?ev=${encodeURIComponent(x.key)}">
-          <span class="pill">${x.start.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · ${MH.fmtTime(x.start)}</span>
+          <span class="pill">${x.start.toLocaleDateString(MH.uiLocale(), { weekday: "short", month: "short", day: "numeric" })} · ${MH.fmtTime(x.start)}</span>
           <h3 style="margin-top:10px">${e(x.title)}</h3><p class="muted small">${e(x.desc)}</p><p class="small">${MH.ageLabel(x)}${MH.audienceLabel(x) ? " · " + MH.audienceLabel(x) : ""}</p></a>
           ${MH.eventActions(x)}</div>`).join("")}</div>
       </div>

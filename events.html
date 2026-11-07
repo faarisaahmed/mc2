@@ -111,8 +111,8 @@
     const match = e.score >= 75 ? `<span class="pill gold match">${MH.icon("star")} Great match</span>` : "";
     return `<article class="card ev" id="${e.key}">
       ${match}
-      <div class="when"><div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
-      <div><div class="meta">${e.start.toLocaleDateString([], { weekday: "long" })}</div><div style="font-weight:600">${MH.fmtTime(e.start)} – ${MH.fmtTime(e.end)}</div></div></div>
+      <div class="when"><div class="date-badge"><div class="m">${e.start.toLocaleDateString(MH.uiLocale(), { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
+      <div><div class="meta">${e.start.toLocaleDateString(MH.uiLocale(), { weekday: "long" })}</div><div style="font-weight:600">${MH.fmtTime(e.start)} – ${MH.fmtTime(e.end)}</div></div></div>
       <h3 style="margin-top:6px${match ? ";padding-inline-end:110px" : ""}">${MH.esc(e.title)}</h3>
       <p class="muted" style="margin:0">${MH.esc(e.desc)}</p>
       <div class="meta">${MH.icon("pin")}<span>${MH.esc(e.place)}${e.cost ? " · " + MH.esc(e.cost) : ""}</span></div>

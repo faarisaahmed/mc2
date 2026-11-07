@@ -93,7 +93,7 @@
     $("ch-title").textContent = c.t; $("ch-desc").textContent = c.d;
     const list = (SEED[ch] || []).concat((mine()[ch] || []).map(m => Object.assign({ me: true }, m))).sort((a, b) => a.at - b.at);
     $("msgs").innerHTML = list.map(m => `<div class="msg${m.me ? " mine" : ""}"><div class="who">${MH.esc(m.who)}${m.sample ? ' <span class="pill gray" style="font-size:.65rem;padding:1px 6px">sample</span>' : ""}</div>
-      <div>${MH.esc(m.text).replace(/\n/g, "<br>")}</div><div class="when">${new Date(m.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</div></div>`).join("");
+      <div>${MH.esc(m.text).replace(/\n/g, "<br>")}</div><div class="when">${new Date(m.at).toLocaleString(MH.uiLocale(), { weekday: "short", hour: "numeric", minute: "2-digit" })}</div></div>`).join("");
     $("msgs").scrollTop = $("msgs").scrollHeight;
     $("text").placeholder = ch === "imam" ? "Ask a question…" : `Message ${c.t}…`;
   }

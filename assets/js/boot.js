@@ -9,7 +9,8 @@
     var p = JSON.parse(localStorage.getItem("mh:prefs") || "{}");
     if (p.theme === "light" || p.theme === "dark") h.setAttribute("data-theme", p.theme);
     if (p.text === "lg" || p.text === "xl") h.classList.add("text-" + p.text);
-    var ok = ["ar", "ur", "bn", "tr", "fr", "es"], lang = p.lang;
+    // Languages that have a checked translation file (keep in step with ready: true in core.js LANGS).
+    var ok = [], lang = p.lang;
     if (!lang) (navigator.languages || [navigator.language || "en"]).some(function (l) { l = String(l).slice(0, 2).toLowerCase(); if (l === "en" || ok.indexOf(l) > -1) { lang = l; return true; } });
     if (ok.indexOf(lang) > -1) {
       h.lang = lang;
