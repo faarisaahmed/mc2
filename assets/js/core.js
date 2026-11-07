@@ -961,7 +961,11 @@
     openSettings, toast, icon, LOGO
   };
 
-  document.addEventListener("DOMContentLoaded", () => { renderChrome(); applyLang(); });
+  document.addEventListener("DOMContentLoaded", () => {
+    renderChrome(); applyLang();
+    // Show the page once every DOMContentLoaded handler (this one, then the page's own) has run.
+    setTimeout(() => document.documentElement.classList.remove("mh-booting"), 0);
+  });
 
   // Installable app: the service worker (sw.js) saves the site's own files so pages open offline.
   // It stores nothing personal and sends nothing anywhere. Needs http(s); skipped on file://.
