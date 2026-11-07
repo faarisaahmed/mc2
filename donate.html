@@ -110,7 +110,7 @@
       <div style="color:var(--gold)">${MH.icon("heart","ic-lg")}</div>
       <h2 id="g-t">JazakAllahu khayran!</h2>
       <p class="muted">You chose to give <strong>${money(amount)}${{ once: "", monthly: " every month", friday: " every Friday" }[freq]}</strong> to <strong>${MH.esc(c.t)}</strong> at ${MH.esc(mosque.short)}.</p>
-      <div class="notice" style="text-align:start">This is a demo, so <strong>no money was charged</strong>. In the full version, this step opens the mosque's secure payment provider. To give right now, use the official page.</div>
+      <div class="notice" style="text-align:start"><span>This is a demo, so <strong>no money was charged</strong>. In the full version, this step opens the mosque's secure payment provider. To give right now, use the official page.</span></div>
       <div class="actions" style="justify-content:center"><button class="btn ghost" id="g-close">Close</button><a class="btn gold" href="${mosque.donateUrl}" target="_blank" rel="noopener">Give on themuslimcenter.org</a></div></div>`;
     document.body.appendChild(bd);
     const close = () => bd.remove();
@@ -124,11 +124,12 @@
     const grams = $("z-basis").value === "gold" ? 85 : 595, price = v("z-price");
     $("z-price-hint").innerHTML = `Enter the price of ${$("z-basis").value} per gram. Check a live source such as <a href="https://www.kitco.com/" target="_blank" rel="noopener">Kitco</a>.`;
     $("z-give").style.display = "none";
-    if (!price) { $("z-out").innerHTML = `Your zakatable wealth: <strong>${money(Math.max(0, net))}</strong>.<br>Add today's ${$("z-basis").value} price to check it against the nisab.`; return; }
+    // .notice lays its children out side by side, so each message is one <span>.
+    if (!price) { $("z-out").innerHTML = `<span>Your zakatable wealth: <strong>${money(Math.max(0, net))}</strong>.<br>Add today's ${$("z-basis").value} price to check it against the nisab.</span>`; return; }
     const nisab = grams * price;
-    if (net < nisab) { $("z-out").innerHTML = `Your zakatable wealth (<strong>${money(Math.max(0, net))}</strong>) is below the nisab of <strong>${money(nisab)}</strong>. No zakat is due, but sadaqah is always welcome.`; return; }
+    if (net < nisab) { $("z-out").innerHTML = `<span>Your zakatable wealth (<strong>${money(Math.max(0, net))}</strong>) is below the nisab of <strong>${money(nisab)}</strong>. No zakat is due, but sadaqah is always welcome.</span>`; return; }
     const due = net * 0.025;
-    $("z-out").innerHTML = `Nisab: ${money(nisab)} · Your zakatable wealth: ${money(net)}<br><span style="font-size:1.6rem;font-weight:700">Zakat due: $${due.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><br><span class="small">Only if you've held at least the nisab for a full lunar year.</span>`;
+    $("z-out").innerHTML = `<span>Nisab: ${money(nisab)} · Your zakatable wealth: ${money(net)}<br><span style="font-size:1.6rem;font-weight:700">Zakat due: $${due.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><br><span class="small">Only if you've held at least the nisab for a full lunar year.</span></span>`;
     $("z-give").style.display = "inline-flex";
     $("z-give").onclick = () => { cause = "zakat"; amount = Math.round(due); $("custom").value = amount; render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
   }

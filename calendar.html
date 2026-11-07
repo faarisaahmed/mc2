@@ -102,7 +102,7 @@
       <p class="eyebrow" style="margin:0">${d.toLocaleDateString([], { weekday: "long" })}</p>
       <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</h3>
       <p style="margin:2px 0 0;color:var(--accent);font-weight:600">${h.day} ${h.name} ${h.year} AH <span class="arabic" style="color:var(--gold);font-weight:400">${h.ar}</span></p>
-      ${hd ? `<div class="notice" style="margin-top:12px"><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</div>` : ""}
+      ${hd ? `<div class="notice" style="margin-top:12px"><span><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</span></div>` : ""}
       ${f ? `<div class="notice ${f.no ? "danger" : "green"}" style="margin-top:10px">${MH.icon(f.no ? "alert" : "moon")}<span>${MH.esc(f.t)}</span></div>` : ""}
       <table class="ptable" style="margin-top:8px">${MH.PRAYERS.map(p => `<tr><td style="padding:8px 4px;font-size:1rem">${p.t}</td><td class="t" style="padding:8px 4px;font-size:1rem">${MH.fmtTime(t[p.id])}</td></tr>`).join("")}</table>
       ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html?ev=${encodeURIComponent(e.key)}" style="display:block;padding:10px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
