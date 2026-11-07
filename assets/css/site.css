@@ -328,6 +328,13 @@ details.more[open] summary::before{content:"– "}
 .filters{display:flex;flex-direction:column;gap:16px}
 .filters .group{display:flex;flex-direction:column;gap:8px}
 .mini-ev{display:flex;gap:14px;align-items:center;padding:14px 16px}
+/* Event cards whose main part is a link, with the calendar and share menus underneath */
+.mini-card{padding:0}
+.mini-card .mini-ev,.card-link{color:inherit;text-decoration:none}
+.mini-card .mini-ev:hover,.card-link:hover{text-decoration:none}
+.card-link:hover h3{color:var(--accent)}
+.mini-card .ev-actions{margin:0;padding:0 16px 14px}
+.card-link{display:block}
 .mini-ev .date-badge{width:52px;padding:6px 0}
 
 /* ---------- Map ---------- */

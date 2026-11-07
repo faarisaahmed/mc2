@@ -422,6 +422,66 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
+  // "Add to calendar" and "Share" menus for one event card. `extra` is more HTML placed after the two
+  // buttons (e.g. a "Plan my day" link). Wire a list of these up once with bindEventMenus.
+  function eventActions(e, extra) {
+    const l = eventLinks(e), k = e.key;
+    return `<div class="ev-actions">
+      <button type="button" class="btn sm ghost" data-menu="cal-${k}" aria-expanded="false" aria-controls="cal-${k}">${icon("calendar")} Add to calendar</button>
+      <button type="button" class="btn sm ghost" data-menu="share-${k}" aria-expanded="false" aria-controls="share-${k}">${icon("share")} Share</button>
+      ${extra || ""}
+      <div class="pop-menu" id="cal-${k}" role="group" aria-label="Add to calendar" hidden>
+        <a href="${esc(l.google)}" target="_blank" rel="noopener">${icon("globe")} Google Calendar</a>
+        <button type="button" data-ics="${k}">${icon("calendar")} Apple, Outlook and others (.ics file)</button>
+      </div>
+      <div class="pop-menu" id="share-${k}" role="group" aria-label="Share" hidden>
+        <a href="${esc(l.whatsapp)}" target="_blank" rel="noopener">${icon("chat")} WhatsApp</a>
+        <button type="button" data-copy="${k}">${icon("link")} Copy link</button>
+        ${navigator.share ? `<button type="button" data-share="${k}">${icon("share")} More apps…</button>` : ""}
+      </div>
+    </div>`;
+  }
+  // One menu open at a time; Escape or a click elsewhere closes it.
+  function closeMenus(except) {
+    document.querySelectorAll(".pop-menu:not([hidden])").forEach(m => {
+      if (m === except) return;
+      m.hidden = true;
+      const b = document.querySelector(`[data-menu="${m.id}"]`); if (b) b.setAttribute("aria-expanded", "false");
+    });
+  }
+  let menuKeysBound = false;
+  // find(key) returns the event occurrence for a card's key. Call once per container (it may re-render freely).
+  function bindEventMenus(container, find) {
+    container.addEventListener("click", evt => {
+      const toggle = evt.target.closest("[data-menu]");
+      if (toggle) {
+        const menu = document.getElementById(toggle.dataset.menu), open = menu.hidden;
+        closeMenus(menu);
+        menu.hidden = !open; toggle.setAttribute("aria-expanded", String(open));
+        if (open) menu.querySelector("a, button").focus();
+        return;
+      }
+      const b = evt.target.closest(".pop-menu a, .pop-menu button"); if (!b) return;
+      const e = find(b.dataset.ics || b.dataset.copy || b.dataset.share);
+      closeMenus();
+      if (!e) return;   // a plain link (Google Calendar, WhatsApp) opens by itself
+      if (b.dataset.ics) { download(e.id + ".ics", icsFor([e]), "text/calendar"); toast("Calendar file downloaded"); }
+      else if (b.dataset.copy) {
+        const url = eventLinks(e).url;
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast("Link copied"), () => window.prompt("Copy this link:", url));
+      }
+      else if (b.dataset.share) { const l = eventLinks(e); navigator.share({ title: e.title, text: l.text, url: l.url }).catch(() => {}); }
+    });
+    if (menuKeysBound) return;
+    menuKeysBound = true;
+    document.addEventListener("click", evt => { if (!evt.target.closest(".ev-actions")) closeMenus(); });
+    document.addEventListener("keydown", evt => {
+      if (evt.key !== "Escape") return;
+      const open = document.querySelector(".pop-menu:not([hidden])"); if (!open) return;
+      closeMenus(); const b = document.querySelector(`[data-menu="${open.id}"]`); if (b) b.focus();
+    });
+  }
+
   /* ---------------- Icons (simple line icons, no emoji) ---------------- */
   const ICONS = {
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -859,7 +919,7 @@
     hijri, fmtHijri, HIJRI_MONTHS, ISLAMIC_DAYS, islamicDay, upcomingIslamicDays,
     fmtTime, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
-    occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, download,
+    occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
     openSettings, toast, icon, LOGO
   };
 
