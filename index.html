@@ -193,7 +193,7 @@
     const slot = (tm, cls, ttl) => `<div class="slot ${cls}"><span class="tm">${tm}</span><div class="ttl">${cls === "prayer" ? MH.icon("mosque") : ""}${ttl}</div></div>`;
     $("mini-plan").innerHTML =
       slot(MH.fmtTime(t.fajr), "prayer", "Fajr") +
-      slot("8:00 AM", "", "School") +
+      slot(MH.fmtTime(new Date(new Date().setHours(8, 0, 0, 0))), "", "School") +
       slot(MH.fmtTime(t.dhuhr), "prayer", "Dhuhr at lunch break") +
       slot(MH.fmtTime(t.asr), "prayer", "Asr before soccer") +
       slot(MH.fmtTime(t.maghrib), "prayer", "Maghrib, then dinner");
