@@ -360,13 +360,26 @@
   // Simple .ics export so people can add an event to their own calendar.
   function icsFor(list) {
     const z = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    // RFC 5545 text: escape backslash first, then , ; and line breaks.
+    const esc = s => String(s || "").replace(/\\/g, "\\\\").replace(/[,;]/g, "\\$&").replace(/\r\n|\r|\n/g, "\\n");
+    // Fold lines longer than 75 bytes (UTF-8), never splitting a character.
+    const enc = new TextEncoder();
+    const fold = line => {
+      let out = "", n = 0;
+      for (const ch of line) {
+        const b = enc.encode(ch).length;
+        if (n + b > 75) { out += "\r\n "; n = 1; }
+        out += ch; n += b;
+      }
+      return out;
+    };
     const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MasjidHub//Demo//EN"];
     list.forEach(e => {
       lines.push("BEGIN:VEVENT", `UID:${e.key || Math.random()}@masjidhub`, `DTSTAMP:${z(new Date())}`, `DTSTART:${z(e.start)}`, `DTEND:${z(e.end)}`,
-        `SUMMARY:${(e.title || "").replace(/[,;]/g, "\\$&")}`, `LOCATION:${(e.place || "").replace(/[,;]/g, "\\$&")}`, `DESCRIPTION:${(e.desc || "").replace(/[,;]/g, "\\$&")}`, "END:VEVENT");
+        `SUMMARY:${esc(e.title)}`, `LOCATION:${esc(e.place)}`, `DESCRIPTION:${esc(e.desc)}`, "END:VEVENT");
     });
     lines.push("END:VCALENDAR");
-    return lines.join("\r\n");
+    return lines.map(fold).join("\r\n") + "\r\n";
   }
   function download(name, text, type) {
     const a = document.createElement("a");
