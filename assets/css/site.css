@@ -211,7 +211,7 @@ a.card{color:inherit;text-decoration:none}
 a.card:hover{border-color:var(--gold)}
 .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;border:1px solid var(--line)}
 .two-col{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start}
-@media (max-width:860px){.two-col{grid-template-columns:1fr}}
+@media (max-width:860px){.two-col{grid-template-columns:minmax(0,1fr)}}  /* minmax: wide content can't push the column past the screen */
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;padding:4px 10px;border-radius:980px;background:var(--soft-green);color:var(--soft-green-ink)}
 .pill.gold{background:var(--soft-gold);color:var(--soft-gold-ink)}
 .pill.gray{background:var(--gray-pill);color:var(--gray-pill-ink)}
@@ -285,8 +285,8 @@ details.more[open] summary::before{content:"– "}
 .ptable{width:100%;border-collapse:collapse}
 .ptable td{padding:16px 6px;border-bottom:1px solid var(--line);font-size:1.15rem}
 .ptable tr:last-child td{border-bottom:0}
-.ptable td.t{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
-.ptable td .ar{font-family:var(--arabic);color:var(--muted);margin-inline-start:10px;font-size:1.05rem}
+.ptable td.t{text-align:end;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums}
+.ptable td .ar{display:inline-block;font-family:var(--arabic);color:var(--muted);margin-inline-start:10px;font-size:1.05rem}
 .ptable tr.next td{color:var(--accent)}
 .ptable tr.next td:first-child::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--gold);margin-inline-end:10px;vertical-align:middle}
 .ptable tr.past td{color:var(--muted);opacity:.7}
