@@ -199,6 +199,7 @@
       slot(MH.fmtTime(t.maghrib), "prayer", "Maghrib, then dinner");
   }
 
+  let homeEvents = [];
   function renderEvents() {
     const now = new Date(), end = new Date(now.getTime() + 21 * 86400000);
     const list = MH.occurrences(now, end).filter(e => MH.fitsAudience(e))
@@ -207,9 +208,11 @@
     const seen = new Set(), top = [];
     for (const e of list) { if (!seen.has(e.id)) { seen.add(e.id); top.push(e); } if (top.length === 3) break; }
     top.sort((a, b) => a.start - b.start);
-    $("home-events").innerHTML = top.map(e => `<a class="card mini-ev" href="events.html#${e.key}">
+    homeEvents = top;
+    $("home-events").innerHTML = top.map(e => `<div class="card mini-card"><a class="mini-ev" href="events.html?ev=${encodeURIComponent(e.key)}">
       <div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
-      <div><div style="font-weight:700;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>`).join("")
+      <div><div style="font-weight:700;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>
+      ${MH.eventActions(e)}</div>`).join("")
       + `<p class="small muted center" style="margin:4px 0 0">${MH.prefs.age || MH.prefs.interests.length ? "Picked for you" : "Tip: open Settings to see events picked for you"}</p>`;
   }
 
@@ -227,6 +230,7 @@
   function renderAll() { renderPrayers(); renderEvents(); renderCalendar(); tick(); }
   document.addEventListener("DOMContentLoaded", () => {
     renderStatic(); renderAll();
+    MH.bindEventMenus($("home-events"), key => homeEvents.find(x => x.key === key));
     setInterval(tick, 1000);
     MH.onPrefs(renderAll);
     $("hero-loc").onclick = () => MH.openSettings({ step: "loc" });
