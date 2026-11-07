@@ -10,11 +10,8 @@ Greater Princeton). Prayer times, Qibla, Islamic calendar, events, a day planner
 a mosque map, and donations.
 
 - Plain **HTML, CSS, and vanilla JavaScript**. No framework, no bundler, no `npm`, no build step.
-- This repo is Nasir's fork. `origin` = NMunir-afk/mc2, `upstream` = faarisaahmed/mc2 (Faaris, the team's repo).
-- Two sites, both **GitHub Pages** from the repo root of `main`:
-  - Test site: https://nmunir-afk.github.io/mc2/ deploys when this fork's `main` changes.
-  - Team site: https://faarisaahmed.github.io/mc2/ deploys only when Faaris merges into his `main`.
-- "The owner" means Faaris for anything meant to be merged upstream; Nasir decides for fork-only experiments.
+- This is the team's repo: faarisaahmed/mc2. "The owner" means Faaris, who reviews and merges.
+- The site is **GitHub Pages** from the repo root of `main`: https://faarisaahmed.github.io/mc2/ updates when `main` changes.
 
 ## Run and check
 
@@ -109,7 +106,7 @@ Every page loads scripts in this order:
 
 ## Git workflow
 
-- Never commit directly to `main`; it deploys the test site. Work on a branch and open a PR into this fork's `main`.
+- Never commit directly to `main`; it deploys the live site. Work on a branch and open a PR into `main`.
 - Branch names: `feat/<short-name>`, `fix/<short-name>`, `docs/<short-name>`.
 - Commit on your branch after each logical unit of work and push it, so progress is never lost.
 - Commit messages match the existing `git log` style: a short, plain-English summary of what changed for the user,
@@ -120,16 +117,9 @@ Every page loads scripts in this order:
 - Multiple agents may be working at once. Before starting, pull `main`; avoid broad edits to
   `core.js` and `site.css` unless the task needs them, since those are shared by every page.
 - PR description: what changed, which pages you checked, and screenshots for visual changes.
-- To pull in upstream changes: `git fetch upstream && git merge upstream/main` on a branch, then PR.
+- For a large change, also link an explainer page in the PR.
 
-### Test here, then offer upstream
+### Working from a fork
 
-1. Branch from this fork's `main`, build, and open a PR into this fork's `main`. Merging it updates the test site.
-2. Check the change on the test site (phone, light/dark) before offering it.
-3. To offer it to Faaris, copy the branch onto his `main` so the PR holds only that change, not fork-only commits:
-   `git fetch upstream && git switch -c up/<name> <branch> && git rebase --onto upstream/main main`
-   then `git push -u origin up/<name>` and
-   `gh pr create --repo faarisaahmed/mc2 --base main --head NMunir-afk:up/<name>`.
-4. The upstream PR description links the test site, lists the pages checked, and includes screenshots.
-   For a large change, also link an explainer page.
-- Opening a PR on Faaris's repo is outward-facing: ask Nasir before step 3.
+Teammates without write access fork the repo and can turn on GitHub Pages for their fork, which gives a free test site.
+Build and check on the fork's own site (phone, light/dark) first, then open a PR into faarisaahmed/mc2 that links it.
