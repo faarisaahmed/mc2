@@ -648,6 +648,7 @@
     translatePage();
     if (document.body) observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
     h.classList.remove("mh-translating");
+    fitNav();
   }
 
   function openLangMenu(anchor) {
@@ -674,6 +675,7 @@
     { t: "Donate", ic: "heart", pages: [["donate.html", "Donate"]] }
   ];
 
+  let fitNav = () => {};   // set by renderChrome
   function renderChrome() {
     const here = location.pathname.split("/").pop() || "index.html";
     const section = NAV.find(g => g.pages.some(p => p[0] === here) || (g.also || []).includes(here));
@@ -698,8 +700,27 @@
       sub.classList.add("sr-only");
     }
     const style = document.createElement("style");
-    style.textContent = "@media (min-width:981px){.gnav .home-link{display:none}}";
+    style.textContent = "@media (min-width:981px){.gnav:not(.compact) .home-link{display:none}}";
     document.head.appendChild(style);
+    // On wide screens the menu links sit in the top bar. If they don't fit (larger text, longer
+    // translations), switch to the phone menu button instead of letting the bar run off the screen.
+    const navWrap = header.querySelector(".wrap"), wide = matchMedia("(min-width:981px)");
+    let fitQueued = false;
+    fitNav = () => {
+      if (fitQueued) return; fitQueued = true;
+      requestAnimationFrame(() => {
+        fitQueued = false;
+        const was = header.classList.contains("compact");
+        header.classList.remove("compact");
+        const compact = wide.matches && navWrap.scrollWidth > navWrap.clientWidth + 1;
+        header.classList.toggle("compact", compact);
+        if (compact !== was && header.classList.contains("open")) header.querySelector("#mh-menu").click();
+      });
+    };
+    fitNav();
+    window.addEventListener("resize", fitNav);
+    onPrefs(fitNav);
+    if (document.fonts) document.fonts.ready.then(fitNav);
     header.querySelector("#mh-menu").onclick = e => {
       const o = header.classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", o);
       e.currentTarget.innerHTML = icon(o ? "close" : "menu");
