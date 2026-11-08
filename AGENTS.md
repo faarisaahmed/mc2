@@ -119,6 +119,19 @@ Every page loads scripts in this order:
 - PR description: what changed, which pages you checked, and screenshots for visual changes.
 - For a large change, also link an explainer page in the PR.
 
+### Working together
+
+Several people, each with their own AI agent, may change the code at the same time. These rules keep that from turning into conflicts.
+
+- **Claim a task first.** Every code task is a GitHub Issue on faarisaahmed/mc2. Assign yourself before starting, and say "Closes #N" in the PR.
+- **Open a draft PR early**, so others see what you are touching while the work is in progress.
+- **Shared files, one person at a time.** `core.js`, `site.css` and `data.js` are used by every page. If someone has an open PR touching one of them, coordinate before changing it too. Keep big changes to these files in their own small PR and merge it quickly.
+- **Pages rarely clash.** Two different `*.html` pages can be worked on at once.
+- **Short-lived branches.** Small PRs, merged within a day or two. Before opening or updating a PR, run `git pull origin main` on your branch so conflicts show up on your side first.
+- **Review each other's PRs.** `main` only changes through a PR with one approval.
+- **One folder per agent.** Two agents in the same folder overwrite each other. For a second session, use `git worktree add ../mc2-<task> -b feat/<task>` and serve it on another port (`python3 -m http.server 8001`).
+- Personal notes stay out of the repo: `CLAUDE.local.md` and any local knowledge base are never committed.
+
 ### Working from a fork
 
 Teammates without write access fork the repo and can turn on GitHub Pages for their fork, which gives a free test site.
