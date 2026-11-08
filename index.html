@@ -6,9 +6,13 @@
 <title>MasjidHub</title>
 <meta name="description" content="Prayer times, Qibla, events for every age, an AI day planner, and mosques near you, all in one place.">
 <meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="color-scheme" content="light dark">
 <script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
@@ -21,7 +25,8 @@
   <p class="eyebrow" id="hero-date">&nbsp;</p>
   <h1 class="headline" id="hero-h"><span id="next-name">Prayer</span> in <span class="countdown" id="next-count">…</span></h1>
   <p class="lead" id="next-at">&nbsp;</p>
-  <p style="margin:16px 0 0"><button class="loc-link" id="hero-loc" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span id="loc-name"></span><span style="opacity:.75;font-weight:500">· Change</span></button></p>
+  <p style="margin:16px 0 0"><button class="loc-link" id="hero-loc" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span id="loc-name"></span><span class="chg">Change</span></button></p>
+  <p class="tz-note" id="tz-note"></p>
   <div class="prayer-strip wrap" id="strip" aria-label="Today's prayer times"></div>
 </section>
 
@@ -30,6 +35,7 @@
   <div class="wrap">
     <h2 class="title center" style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:22px">What would you like to do?</h2>
     <nav class="quick" id="quick" aria-label="Quick actions"></nav>
+    <div id="install" hidden></div>
   </div>
 </section>
 
@@ -130,7 +136,7 @@
   <div class="wrap" style="text-align:center">
     <p class="eyebrow">Why MasjidHub</p>
     <h2 class="title" style="max-width:820px;margin:0 auto">Most mosques don't have an app. So people miss prayers and miss out.</h2>
-    <p class="lead" style="max-width:720px;margin:14px auto 0">MasjidHub gives every masjid a beautiful, simple home for its prayer times and events. It also helps each person find what fits their age, school of thought, and schedule, so they can grow closer to Allah and to each other.</p>
+    <p class="lead" style="max-width:720px;margin:14px auto 0">MasjidHub gives a masjid a beautiful, simple home for its prayer times and events. It also helps each person find what fits their age, school of thought, and schedule, so they can grow closer to Allah and to each other.</p>
     <div class="grid" id="why" style="margin-top:40px;text-align:start"></div>
   </div>
 </section>
@@ -170,11 +176,12 @@
     const now = new Date(), t = MH.todayTimes(now), next = MH.nextPrayer(now);
     $("hero-date").textContent = `${MH.fmtDate(now)} · ${MH.fmtHijri(now)}`;
     $("loc-name").textContent = MH.prefs.loc.name;
+    $("tz-note").textContent = MH.tzNote();
     $("next-name").textContent = next.t;
     $("next-at").textContent = `${next.t} is at ${MH.fmtTime(next.time)}${next.tomorrow ? " tomorrow" : ""}`;
     $("strip").innerHTML = MH.PRAYERS.map(p => {
       const cls = p.id === next.id && !next.tomorrow ? "next" : (t[p.id] < now ? "past" : "");
-      return `<div class="p ${cls}"><div class="n">${p.t}</div><div class="t">${MH.fmtTime(t[p.id])}</div></div>`;
+      return `<div class="p ${cls}"><div class="n">${p.t}</div><div class="t">${MH.fmtTimeHtml(t[p.id])}</div></div>`;
     }).join("");
     const b = MH.qiblaBearing(MH.prefs.loc.lat, MH.prefs.loc.lng);
     $("qibla-lead").textContent = `From ${MH.prefs.loc.name}, the Qibla is ${Math.round(b)}° ${MH.compassWord(b)}.`;
@@ -191,12 +198,13 @@
     const slot = (tm, cls, ttl) => `<div class="slot ${cls}"><span class="tm">${tm}</span><div class="ttl">${cls === "prayer" ? MH.icon("mosque") : ""}${ttl}</div></div>`;
     $("mini-plan").innerHTML =
       slot(MH.fmtTime(t.fajr), "prayer", "Fajr") +
-      slot("8:00 AM", "", "School") +
+      slot(MH.fmtTime(new Date(new Date().setHours(8, 0, 0, 0))), "", "School") +
       slot(MH.fmtTime(t.dhuhr), "prayer", "Dhuhr at lunch break") +
       slot(MH.fmtTime(t.asr), "prayer", "Asr before soccer") +
       slot(MH.fmtTime(t.maghrib), "prayer", "Maghrib, then dinner");
   }
 
+  let homeEvents = [];
   function renderEvents() {
     const now = new Date(), end = new Date(now.getTime() + 21 * 86400000);
     const list = MH.occurrences(now, end).filter(e => MH.fitsAudience(e))
@@ -205,9 +213,11 @@
     const seen = new Set(), top = [];
     for (const e of list) { if (!seen.has(e.id)) { seen.add(e.id); top.push(e); } if (top.length === 3) break; }
     top.sort((a, b) => a.start - b.start);
-    $("home-events").innerHTML = top.map(e => `<a class="card mini-ev" href="events.html#${e.key}">
-      <div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
-      <div><div style="font-weight:700;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>`).join("")
+    homeEvents = top;
+    $("home-events").innerHTML = top.map(e => `<div class="card mini-card"><a class="mini-ev" href="events.html?ev=${encodeURIComponent(e.key)}">
+      <div class="date-badge"><div class="m">${e.start.toLocaleDateString(MH.uiLocale(), { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
+      <div><div style="font-weight:700;line-height:1.25">${MH.esc(e.title)}</div><div class="small muted">${MH.fmtTime(e.start)} · ${MH.ageLabel(e)}</div></div></a>
+      ${MH.eventActions(e)}</div>`).join("")
       + `<p class="small muted center" style="margin:4px 0 0">${MH.prefs.age || MH.prefs.interests.length ? "Picked for you" : "Tip: open Settings to see events picked for you"}</p>`;
   }
 
@@ -225,6 +235,8 @@
   function renderAll() { renderPrayers(); renderEvents(); renderCalendar(); tick(); }
   document.addEventListener("DOMContentLoaded", () => {
     renderStatic(); renderAll();
+    MH.installCard($("install"));
+    MH.bindEventMenus($("home-events"), key => homeEvents.find(x => x.key === key));
     setInterval(tick, 1000);
     MH.onPrefs(renderAll);
     $("hero-loc").onclick = () => MH.openSettings({ step: "loc" });

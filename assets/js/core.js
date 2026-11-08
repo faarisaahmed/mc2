@@ -27,9 +27,21 @@
     lang: null,            // null = follow the device; otherwise a LANGS code
     onboarded: false
   };
+  // One-time upgrades for saved prefs. PREFS_MIGRATIONS[n] turns version n into n + 1, so each
+  // step runs once per visitor. To change stored prefs: add step PREFS_VERSION, then bump PREFS_VERSION.
+  // Never rewrite an old step, and never reset a setting the visitor may have chosen.
+  const PREFS_MIGRATIONS = {
+    // 1 -> 2: Hanafi became the default Asr. Earlier visitors never chose it on purpose, so move them over once.
+    1: p => { p.asr = "hanafi"; }
+  };
   const saved = store.get("prefs", {});
-  // v2 made Hanafi the default Asr. Earlier visitors never chose it on purpose, so move them over once.
-  if (saved.v !== PREFS_VERSION) { saved.asr = "hanafi"; saved.v = PREFS_VERSION; }
+  const savedV = typeof saved.v === "number" ? saved.v : 1;   // prefs saved before versioning count as v1
+  if (savedV < PREFS_VERSION) {
+    const hadPrefs = Object.keys(saved).length > 0;
+    for (let n = savedV; n < PREFS_VERSION; n++) if (PREFS_MIGRATIONS[n]) PREFS_MIGRATIONS[n](saved);
+    saved.v = PREFS_VERSION;
+    if (hadPrefs) store.set("prefs", saved);  // save so the steps never run again
+  }
   let prefs = Object.assign({}, DEFAULT_PREFS, saved);
   const listeners = [];
   function setPrefs(patch) {
@@ -61,7 +73,7 @@
     ISNA:    { t: "ISNA (North America)",            fajr: 15,   isha: 15 },
     MWL:     { t: "Muslim World League",             fajr: 18,   isha: 17 },
     Egypt:   { t: "Egyptian General Authority",      fajr: 19.5, isha: 17.5 },
-    Makkah:  { t: "Umm al-Qura, Makkah",             fajr: 18.5, ishaMin: 90 },
+    Makkah:  { t: "Umm al-Qura, Makkah",             fajr: 18.5, ishaMin: 90, ishaMinRamadan: 120 },
     Karachi: { t: "University of Islamic Sciences, Karachi", fajr: 18, isha: 18 },
     Tehran:  { t: "Institute of Geophysics, Tehran", fajr: 17.7, isha: 14, maghrib: 4.5 },
     Jafari:  { t: "Shia Ithna-Ashari (Jafari)",      fajr: 16,   isha: 14, maghrib: 4 }
@@ -129,7 +141,8 @@
         maghrib: m.maghrib ? sunAngleTime(m.maghrib, p.maghrib) : sunAngleTime(0.833, p.sunset),
         isha: m.ishaMin ? NaN : sunAngleTime(m.isha, p.isha)
       };
-      if (m.ishaMin) t.isha = t.maghrib + m.ishaMin / 60;
+      // Umm al-Qura: Isha is 90 min after Maghrib, 120 min in Ramadan (same as Aladhan).
+      if (m.ishaMin) t.isha = t.maghrib + (m.ishaMinRamadan && hijri(date).month === 9 ? m.ishaMinRamadan : m.ishaMin) / 60;
     }
 
     // High latitudes: when twilight never reaches the angle, use the angle-based night portion.
@@ -152,21 +165,46 @@
   // Next prayer (skips sunrise). Returns {id, t, ar, time, prevTime}.
   function nextPrayer(now) {
     now = now || new Date();
-    const today = todayTimes(now);
     const order = PRAYERS.filter(p => !p.notPrayer);
-    for (let i = 0; i < order.length; i++) {
-      if (today[order[i].id] > now) return Object.assign({}, order[i], { time: today[order[i].id] });
+    // Times are for the chosen place's day, shown on the phone's clock. For a place far east or west
+    // its day is shifted, so look from yesterday to two days ahead for the first time still to come.
+    // "Tomorrow" means by the phone's own date.
+    for (let off = -1; off <= 2; off++) {
+      const d = new Date(now); d.setDate(d.getDate() + off);
+      const t = todayTimes(d);
+      const p = order.find(x => t[x.id] > now);
+      if (p) return Object.assign({}, p, { time: t[p.id], tomorrow: ymd(t[p.id]) !== ymd(now) });
     }
-    const tm = new Date(now); tm.setDate(tm.getDate() + 1);
-    return Object.assign({}, order[0], { time: todayTimes(tm).fajr, tomorrow: true });
+    return Object.assign({}, order[0], { time: todayTimes(now).fajr });
   }
 
   /* ---------------- Formatting ---------------- */
+  // Dates, times and numbers follow the site's language, not the phone's: an Arabic phone reading the
+  // English site gets English dates. The phone's regional style is kept when it is the same language (en-GB).
+  function uiLocale() {
+    const site = langOf().id, dev = navigator.language || "en";
+    return dev.slice(0, 2).toLowerCase() === site ? dev : site;
+  }
   function fmtTime(d) {
     if (!d || isNaN(d)) return "--:--";
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" });
+    const s = d.toLocaleTimeString(uiLocale(), { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" });
+    // In right-to-left pages, "9:00 AM" would show as "AM 9:00": isolate it as left-to-right text (LRI … PDI).
+    return document.documentElement.dir === "rtl" ? "⁦" + s + "⁩" : s;
   }
-  function fmtDate(d, o) { return d.toLocaleDateString([], o || { weekday: "long", month: "long", day: "numeric" }); }
+  // The same time as HTML, with AM/PM in its own <span class="ap"> so tight layouts can show it smaller.
+  function fmtTimeHtml(d) {
+    if (!d || isNaN(d)) return "--:--";
+    const parts = new Intl.DateTimeFormat(uiLocale(), { hour: "numeric", minute: "2-digit", hour12: prefs.clock !== "24" }).formatToParts(d);
+    const html = parts.map(p => p.type === "dayPeriod" ? `<span class="ap">${esc(p.value)}</span>` : esc(p.value)).join("");
+    return document.documentElement.dir === "rtl" ? "⁦" + html + "⁩" : html;
+  }
+  // Times are always shown on the phone's clock. That can differ from the chosen place's own clock
+  // (e.g. Makkah picked on a phone in New Jersey), so pages say which time zone they use.
+  function tzName(d) {
+    try { return (new Intl.DateTimeFormat(uiLocale(), { timeZoneName: "long" }).formatToParts(d || new Date()).find(p => p.type === "timeZoneName") || {}).value || ""; } catch (e) { return ""; }
+  }
+  function tzNote(d) { const n = tzName(d); return n ? `Times in your time zone: ${n}` : "Times in your time zone"; }
+  function fmtDate(d, o) { return d.toLocaleDateString(uiLocale(), o || { weekday: "long", month: "long", day: "numeric" }); }
   function fmtCountdown(ms) {
     if (ms < 0) ms = 0;
     const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -332,10 +370,10 @@
   }
   function fitsAudience(ev, p) {
     p = p || prefs;
-    if (ev.audience === "all") return true;
-    if (p.gender === "male") return false;
-    if (ev.audience === "girls") return !p.age || p.age === "kids" || p.age === "teens" || p.gender === "female";
-    return true;
+    if (ev.audience === "brothers") return p.gender !== "female";
+    if (ev.audience === "sisters") return p.gender !== "male";
+    if (ev.audience === "girls") return p.gender !== "male" && (!p.age || p.age === "kids" || p.age === "teens" || p.gender === "female");
+    return true;   // "all", or anything unknown
   }
   // 0-100 relevance score for the current profile.
   function matchScore(ev, p) {
@@ -359,19 +397,112 @@
   // Simple .ics export so people can add an event to their own calendar.
   function icsFor(list) {
     const z = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    // RFC 5545 text: escape backslash first, then , ; and line breaks.
+    const esc = s => String(s || "").replace(/\\/g, "\\\\").replace(/[,;]/g, "\\$&").replace(/\r\n|\r|\n/g, "\\n");
+    // Fold lines longer than 75 bytes (UTF-8), never splitting a character.
+    const enc = new TextEncoder();
+    const fold = line => {
+      let out = "", n = 0;
+      for (const ch of line) {
+        const b = enc.encode(ch).length;
+        if (n + b > 75) { out += "\r\n "; n = 1; }
+        out += ch; n += b;
+      }
+      return out;
+    };
     const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MasjidHub//Demo//EN"];
     list.forEach(e => {
       lines.push("BEGIN:VEVENT", `UID:${e.key || Math.random()}@masjidhub`, `DTSTAMP:${z(new Date())}`, `DTSTART:${z(e.start)}`, `DTEND:${z(e.end)}`,
-        `SUMMARY:${(e.title || "").replace(/[,;]/g, "\\$&")}`, `LOCATION:${(e.place || "").replace(/[,;]/g, "\\$&")}`, `DESCRIPTION:${(e.desc || "").replace(/[,;]/g, "\\$&")}`, "END:VEVENT");
+        `SUMMARY:${esc(e.title)}`, `LOCATION:${esc(e.place)}`, `DESCRIPTION:${esc(e.desc)}`, "END:VEVENT");
     });
     lines.push("END:VCALENDAR");
-    return lines.join("\r\n");
+    return lines.map(fold).join("\r\n") + "\r\n";
+  }
+  // Ways to pass one event occurrence on: a link that opens it on events.html, a Google Calendar
+  // "add event" link, a WhatsApp message, and plain text for the phone's share sheet.
+  // These are links the visitor chooses to open; MasjidHub itself sends nothing anywhere.
+  function eventLinks(e) {
+    const z = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const m = e.mosque || MH_DATA.mosques[0];
+    const isAddress = /\d/.test(e.place || "") && (e.place || "").includes(",");
+    const placeShort = !e.place || e.place === m.short ? m.short : isAddress ? e.place : `${e.place}, ${m.short}`;
+    const where = isAddress ? e.place : [e.place && e.place !== m.short ? e.place : "", m.name, m.address].filter(Boolean).join(", ");
+    const url = new URL(`events.html?ev=${encodeURIComponent(e.key)}`, location.href).href;
+    const when = `${fmtDate(e.start, { weekday: "short", month: "short", day: "numeric" })} · ${fmtTime(e.start)} – ${fmtTime(e.end)}`;
+    const note = e.sample ? "Time to be confirmed with the mosque." : "";
+    const text = [e.title, `${when} · ${placeShort}`, note].filter(Boolean).join("\n");
+    const g = new URLSearchParams({ action: "TEMPLATE", text: e.title, details: [e.desc, note, url].filter(Boolean).join("\n\n"), location: where });
+    return {
+      url, text,
+      google: `https://calendar.google.com/calendar/render?${g}&dates=${z(e.start)}/${z(e.end)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + "\n" + url)}`
+    };
   }
   function download(name, text, type) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: type || "text/plain" }));
     a.download = name; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  // "Add to calendar" and "Share" menus for one event card. `extra` is more HTML placed after the two
+  // buttons (e.g. a "Plan my day" link). Wire a list of these up once with bindEventMenus.
+  function eventActions(e, extra) {
+    const l = eventLinks(e), k = e.key;
+    return `<div class="ev-actions">
+      <button type="button" class="btn sm ghost" data-menu="cal-${k}" aria-expanded="false" aria-controls="cal-${k}">${icon("calendar")} Add to calendar</button>
+      <button type="button" class="btn sm ghost" data-menu="share-${k}" aria-expanded="false" aria-controls="share-${k}">${icon("share")} Share</button>
+      ${extra || ""}
+      <div class="pop-menu" id="cal-${k}" role="group" aria-label="Add to calendar" hidden>
+        <a href="${esc(l.google)}" target="_blank" rel="noopener">${icon("globe")} Google Calendar</a>
+        <button type="button" data-ics="${k}">${icon("calendar")} Apple, Outlook and others (.ics file)</button>
+      </div>
+      <div class="pop-menu" id="share-${k}" role="group" aria-label="Share" hidden>
+        <a href="${esc(l.whatsapp)}" target="_blank" rel="noopener">${icon("chat")} WhatsApp</a>
+        <button type="button" data-copy="${k}">${icon("link")} Copy link</button>
+        ${navigator.share ? `<button type="button" data-share="${k}">${icon("share")} More apps…</button>` : ""}
+      </div>
+    </div>`;
+  }
+  // One menu open at a time; Escape or a click elsewhere closes it.
+  function closeMenus(except) {
+    document.querySelectorAll(".pop-menu:not([hidden])").forEach(m => {
+      if (m === except) return;
+      m.hidden = true;
+      const b = document.querySelector(`[data-menu="${m.id}"]`); if (b) b.setAttribute("aria-expanded", "false");
+    });
+  }
+  let menuKeysBound = false;
+  // find(key) returns the event occurrence for a card's key. Call once per container (it may re-render freely).
+  function bindEventMenus(container, find) {
+    container.addEventListener("click", evt => {
+      const toggle = evt.target.closest("[data-menu]");
+      if (toggle) {
+        const menu = document.getElementById(toggle.dataset.menu), open = menu.hidden;
+        closeMenus(menu);
+        menu.hidden = !open; toggle.setAttribute("aria-expanded", String(open));
+        if (open) menu.querySelector("a, button").focus();
+        return;
+      }
+      const b = evt.target.closest(".pop-menu a, .pop-menu button"); if (!b) return;
+      const e = find(b.dataset.ics || b.dataset.copy || b.dataset.share);
+      closeMenus();
+      if (!e) return;   // a plain link (Google Calendar, WhatsApp) opens by itself
+      if (b.dataset.ics) { download(e.id + ".ics", icsFor([e]), "text/calendar"); toast("Calendar file downloaded"); }
+      else if (b.dataset.copy) {
+        const url = eventLinks(e).url;
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast("Link copied"), () => window.prompt("Copy this link:", url));
+      }
+      else if (b.dataset.share) { const l = eventLinks(e); navigator.share({ title: e.title, text: l.text, url: l.url }).catch(() => {}); }
+    });
+    if (menuKeysBound) return;
+    menuKeysBound = true;
+    document.addEventListener("click", evt => { if (!evt.target.closest(".ev-actions")) closeMenus(); });
+    document.addEventListener("keydown", evt => {
+      if (evt.key !== "Escape") return;
+      const open = document.querySelector(".pop-menu:not([hidden])"); if (!open) return;
+      closeMenus(); const b = document.querySelector(`[data-menu="${open.id}"]`); if (b) b.focus();
+    });
   }
 
   /* ---------------- Icons (simple line icons, no emoji) ---------------- */
@@ -414,7 +545,11 @@
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
     text: '<path d="M4 19 9 5l5 14M5.8 14h6.4M15 19l3-8 3 8M15.9 16.5h4.2"/>',
     menu: '<path d="M4 8h16M4 16h16"/>',
-    home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>'
+    home: '<path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5"/>',
+    share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    "ios-share": '<path d="M12 3.5v11M8.5 7 12 3.5 15.5 7"/><path d="M9 10H6.5v10.5h11V10H15"/>',   // the iPhone Share button
+    mobile: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'
   };
   const DIRECTIONAL = { arrow: 1, back: 1 }; // mirrored in right-to-left languages
   function icon(name, cls) {
@@ -424,9 +559,11 @@
   /* ---------------- Languages ----------------
      Pages are written in English. Each language file (assets/i18n/xx.json) maps English text to its
      translation, so no HTML has to change. Keys may hold {placeholders}, like "{p} in {t}", for text
-     that includes a name or number. Anything without a translation simply stays in English. */
+     that includes a name or number. Anything without a translation simply stays in English.
+     Only languages marked ready: true are offered. Mark one ready once assets/i18n/<id>.json exists and a
+     fluent speaker has checked it, and add its id to the list in boot.js. */
   const LANGS = [
-    { id: "en", name: "English", en: "English" },
+    { id: "en", name: "English", en: "English", ready: true },
     { id: "ar", name: "العربية", en: "Arabic", rtl: true, font: "Noto+Sans+Arabic:wght@400;500;600;700;800", family: "Noto Sans Arabic" },
     { id: "ur", name: "اردو", en: "Urdu", rtl: true, font: "Noto+Nastaliq+Urdu:wght@400;500;600;700", family: "Noto Nastaliq Urdu" },
     { id: "bn", name: "বাংলা", en: "Bengali", font: "Noto+Sans+Bengali:wght@400;500;600;700;800", family: "Noto Sans Bengali" },
@@ -434,11 +571,13 @@
     { id: "fr", name: "Français", en: "French" },
     { id: "es", name: "Español", en: "Spanish" }
   ];
+  // A saved choice of a language that isn't ready is kept, and used once that language is ready.
+  const READY = LANGS.filter(l => l.ready);
   function deviceLang() {
     const want = (navigator.languages || [navigator.language || "en"]).map(l => String(l).slice(0, 2).toLowerCase());
-    return (want.find(l => LANGS.some(x => x.id === l))) || "en";
+    return (want.find(l => READY.some(x => x.id === l))) || "en";
   }
-  const langOf = () => LANGS.find(l => l.id === (prefs.lang || deviceLang())) || LANGS[0];
+  const langOf = () => READY.find(l => l.id === (prefs.lang || deviceLang())) || READY.find(l => l.id === deviceLang()) || LANGS[0];
 
   let dict = {}, patterns = [], dictLang = "en";
   const seen = new WeakMap();          // node -> { o: English, t: what we wrote }
@@ -521,13 +660,14 @@
     translatePage();
     if (document.body) observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
     h.classList.remove("mh-translating");
+    fitNav();
   }
 
   function openLangMenu(anchor) {
     const old = document.getElementById("mh-langmenu"); if (old) { old.remove(); return; }
     const cur = langOf().id, m = document.createElement("div");
     m.id = "mh-langmenu"; m.className = "lang-menu"; m.setAttribute("role", "menu");
-    m.innerHTML = LANGS.map(l => `<button type="button" role="menuitemradio" aria-checked="${l.id === cur}" data-l="${l.id}" lang="${l.id}" translate="no"><span>${l.name}</span>${l.id !== "en" ? `<small>${l.en}</small>` : ""}</button>`).join("");
+    m.innerHTML = READY.map(l => `<button type="button" role="menuitemradio" aria-checked="${l.id === cur}" data-l="${l.id}" lang="${l.id}" translate="no"><span>${l.name}</span>${l.id !== "en" ? `<small>${l.en}</small>` : ""}</button>`).join("");
     anchor.after(m);
     m.querySelector('[aria-checked="true"]').focus();
     m.onclick = e => { const b = e.target.closest("[data-l]"); if (!b) return; m.remove(); setPrefs({ lang: b.dataset.l }); };
@@ -547,16 +687,21 @@
     { t: "Donate", ic: "heart", pages: [["donate.html", "Donate"]] }
   ];
 
+  let fitNav = () => {};   // set by renderChrome
   function renderChrome() {
     const here = location.pathname.split("/").pop() || "index.html";
     const section = NAV.find(g => g.pages.some(p => p[0] === here) || (g.also || []).includes(here));
     const header = document.createElement("header");
     header.className = "gnav";
+    // The app installed on an iPhone has no back button of its own (Android has the system back gesture).
+    const iosApp = navigator.standalone === true && here !== "index.html";
+    const backBtn = iosApp ? `<button class="icon-btn back-btn" id="mh-back" type="button" aria-label="Back">${icon("back")}</button>` : "";
+    if (iosApp) header.classList.add("has-back");
     header.innerHTML = `<div class="wrap">
-      <a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
+      ${backBtn}<a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
       <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}</a>`).join("")}</nav>
       <div class="tools">
-        <button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>
+        ${READY.length > 1 ? `<button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>` : ""}
         <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${icon("text")}</button>
         <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}</button>
         <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false" aria-controls="mh-links">${icon("menu")}</button>
@@ -571,14 +716,38 @@
       sub.classList.add("sr-only");
     }
     const style = document.createElement("style");
-    style.textContent = "@media (min-width:981px){.gnav .home-link{display:none}}";
+    style.textContent = "@media (min-width:981px){.gnav:not(.compact) .home-link{display:none}}";
     document.head.appendChild(style);
+    // On wide screens the menu links sit in the top bar. If they don't fit (larger text, longer
+    // translations), switch to the phone menu button instead of letting the bar run off the screen.
+    const navWrap = header.querySelector(".wrap"), wide = matchMedia("(min-width:981px)");
+    let fitQueued = false;
+    fitNav = () => {
+      if (fitQueued) return; fitQueued = true;
+      requestAnimationFrame(() => {
+        fitQueued = false;
+        const was = header.classList.contains("compact");
+        header.classList.remove("compact");
+        const compact = wide.matches && navWrap.scrollWidth > navWrap.clientWidth + 1;
+        header.classList.toggle("compact", compact);
+        if (compact !== was && header.classList.contains("open")) header.querySelector("#mh-menu").click();
+      });
+    };
+    fitNav();
+    window.addEventListener("resize", fitNav);
+    onPrefs(fitNav);
+    if (document.fonts) document.fonts.ready.then(fitNav);
     header.querySelector("#mh-menu").onclick = e => {
       const o = header.classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", o);
       e.currentTarget.innerHTML = icon(o ? "close" : "menu");
     };
     header.querySelector("#mh-settings").onclick = () => openSettings();
-    header.querySelector("#mh-lang").onclick = e => openLangMenu(e.currentTarget);
+    if (iosApp) header.querySelector("#mh-back").onclick = () => {
+      const fromHere = document.referrer && new URL(document.referrer).origin === location.origin;
+      if (fromHere && history.length > 1) history.back(); else location.href = "index.html";
+    };
+    const langBtn = header.querySelector("#mh-lang");
+    if (langBtn) langBtn.onclick = e => openLangMenu(e.currentTarget);
     header.querySelector("#mh-text").onclick = () => {
       const next = { md: "lg", lg: "xl", xl: "md" }[prefs.text] || "lg";
       setPrefs({ text: next });
@@ -589,10 +758,10 @@
     foot.className = "gfoot";
     foot.innerHTML = `<div class="wrap">
       <div class="cols">
-        <div><h5>Pray</h5><a href="prayer.html">Prayer Times</a><a href="qibla.html">Qibla Finder</a><a href="calendar.html">Islamic Calendar</a></div>
-        <div><h5>Connect</h5><a href="events.html">Events</a><a href="community.html">Community</a><a href="planner.html">AI Day Planner</a></div>
-        <div><h5>Mosques</h5><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a></div>
-        <div><h5>Give</h5><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
+        <div><h2>Pray</h2><a href="prayer.html">Prayer Times</a><a href="qibla.html">Qibla Finder</a><a href="calendar.html">Islamic Calendar</a></div>
+        <div><h2>Connect</h2><a href="events.html">Events</a><a href="community.html">Community</a><a href="planner.html">AI Day Planner</a></div>
+        <div><h2>Mosques</h2><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a></div>
+        <div><h2>Give</h2><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
       </div>
       <div class="legal"><span>MasjidHub demo for the Muslim Center of Greater Princeton. MCGP details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span>Mosque data © OpenStreetMap contributors · Map tiles © Esri</span></div>
     </div>`;
@@ -602,6 +771,48 @@
 
     // Static pages write <i data-ic="pin"></i> where an icon belongs.
     document.querySelectorAll("i[data-ic]").forEach(el => { el.outerHTML = icon(el.dataset.ic, el.className); });
+  }
+
+  /* ---------------- Install the app ----------------
+     Android and desktop Chrome/Edge offer an install prompt (beforeinstallprompt), which can fire on any
+     page, so it's kept here. iPhone and iPad have no prompt: people use Share > Add to Home Screen.
+     Nothing is sent anywhere; "hide this" is remembered on this device only. */
+  let installEvent = null;
+  const installViews = [];
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; installViews.forEach(fn => fn()); });
+  window.addEventListener("appinstalled", () => { installEvent = null; installViews.forEach(fn => fn()); });
+  const isInstalledApp = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  // "prompt" (can show the browser's install dialog), "ios" (show the steps), or "" (nothing to offer).
+  function installWay() {
+    if (isInstalledApp() || store.get("install-hidden", false)) return "";
+    if (installEvent) return "prompt";
+    return isIOS() ? "ios" : "";
+  }
+  // Fills `el` with a small "Get the app" card when installing is possible; hides it otherwise.
+  function installCard(el) {
+    const draw = () => {
+      const way = installWay();
+      el.hidden = !way;
+      el.innerHTML = !way ? "" : `<div class="install-card">
+        <span class="install-ic">${icon("mobile")}</span>
+        <p class="install-txt"><strong>Get the MasjidHub app</strong>
+          <span>${way === "prompt" ? "Prayer times and Qibla on your home screen, even offline."
+            : `Tap ${icon("ios-share")}<b>Share</b>, then <b>Add to Home Screen</b>.`}</span></p>
+        ${way === "prompt" ? `<button class="btn sm" type="button" data-install>Install</button>` : ""}
+        <button class="icon-btn install-x" type="button" data-hide aria-label="Hide this">${icon("close")}</button>
+      </div>`;
+    };
+    el.addEventListener("click", async e => {
+      if (e.target.closest("[data-install]") && installEvent) {
+        const ev = installEvent; installEvent = null;   // the browser allows one prompt per event
+        ev.prompt();
+        try { await ev.userChoice; } catch (err) { /* ignore */ }
+        draw();
+      } else if (e.target.closest("[data-hide]")) { store.set("install-hidden", true); draw(); }
+    });
+    installViews.push(draw);
+    draw();
   }
 
   let toastTimer;
@@ -617,7 +828,8 @@
   // openSettings({step:"loc"}) -> jump straight to one step
   function openSettings(arg) {
     const welcome = arg === true;
-    const steps = welcome ? ["lang", "loc", "school", "age", "interests"] : ["lang", "loc", "school", "age", "interests", "display"];
+    const steps = (welcome ? ["lang", "loc", "school", "age", "interests"] : ["lang", "loc", "school", "age", "interests", "display"])
+      .filter(s => s !== "lang" || READY.length > 1);
     let i = Math.max(0, steps.indexOf(arg && arg.step));
     const draft = JSON.parse(JSON.stringify(prefs));
     let searchTimer = null, searchToken = 0;
@@ -638,7 +850,7 @@
       lang: () => `
         <h2 id="sh-title">Choose your language</h2>
         <p class="intro">You can change this any time with the globe button at the top.</p>
-        <div class="choices two" id="sh-lang">${LANGS.map(l => `<button type="button" class="choice" data-v="${l.id}" aria-pressed="${langOf().id === l.id}" lang="${l.id}" translate="no">
+        <div class="choices two" id="sh-lang">${READY.map(l => `<button type="button" class="choice" data-v="${l.id}" aria-pressed="${langOf().id === l.id}" lang="${l.id}" translate="no">
           <span><span class="c-t">${l.name}</span>${l.id !== "en" ? `<span class="c-d">${l.en}</span>` : ""}</span><span class="c-check">${icon("check")}</span></button>`).join("")}</div>`,
       loc: () => `
         <h2 id="sh-title">Where do you pray?</h2>
@@ -807,11 +1019,21 @@
     get prefs() { return prefs; }, setPrefs, onPrefs, store,
     METHODS, PRAYERS, prayerTimes, todayTimes, nextPrayer, qiblaBearing, KAABA, distanceKm, fmtDistance, compassWord,
     hijri, fmtHijri, HIJRI_MONTHS, ISLAMIC_DAYS, islamicDay, upcomingIslamicDays,
-    fmtTime, fmtDate, fmtCountdown, ymd, parseYmd, esc,
+    uiLocale, fmtTime, fmtTimeHtml, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
-    occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, download,
-    openSettings, toast, icon, LOGO
+    occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
+    openSettings, toast, icon, LOGO, installCard
   };
 
-  document.addEventListener("DOMContentLoaded", () => { renderChrome(); applyLang(); });
+  document.addEventListener("DOMContentLoaded", () => {
+    renderChrome(); applyLang();
+    // Show the page once every DOMContentLoaded handler (this one, then the page's own) has run.
+    setTimeout(() => document.documentElement.classList.remove("mh-booting"), 0);
+  });
+
+  // Installable app: the service worker (sw.js) saves the site's own files so pages open offline.
+  // It stores nothing personal and sends nothing anywhere. Needs http(s); skipped on file://.
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
 })();

@@ -6,9 +6,13 @@
 <title>AI Day Planner · MasjidHub</title>
 <meta name="description" content="Type your schedule and get a day planned around the five prayers and events that suit you.">
 <meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="color-scheme" content="light dark">
 <script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
@@ -46,7 +50,7 @@
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
             <button class="btn" type="submit"><i data-ic="sparkle"></i> Plan my day</button>
-            <button class="btn ghost" type="button" id="profile">Personalize (age &amp; interests)</button>
+            <button class="btn ghost wrap" type="button" id="profile">Personalize (age &amp; interests)</button>
           </div>
           <p class="small muted" id="who" style="margin:12px 0 0"></p>
         </form>

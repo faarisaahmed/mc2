@@ -6,9 +6,13 @@
 <title>Events · MasjidHub</title>
 <meta name="description" content="Mosque events for kids, teens, adults, and families, sorted for you.">
 <meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="color-scheme" content="light dark">
 <script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
@@ -38,7 +42,7 @@
           <div class="group"><span class="label">When</span><div class="seg" id="range-seg"><button type="button" data-v="7">This week</button><button type="button" data-v="14">2 weeks</button><button type="button" data-v="31">Month</button></div></div>
           <div class="group" style="flex:1;min-width:200px"><label class="label" for="q">Search</label><input type="search" id="q" placeholder="Basketball, halaqa, sisters…"></div>
         </div>
-        <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="hide-daily"> Hide regular prayer gatherings (Jumu'ah, halaqas)</label>
+        <label class="small" style="display:flex;gap:8px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" id="hide-daily"> Hide regular prayer gatherings (Jumu'ah, halaqas)</label>
       </div>
       <p class="muted small" id="count" aria-live="polite"></p>
       <div id="list"></div>
@@ -56,6 +60,14 @@
     interests: params.get("interest") ? [params.get("interest")] : [],
     sort: "foryou", range: 14, q: "", hideDaily: false
   };
+  // A shared link (events.html?ev=<id><yyyy-mm-dd>) opens with every age shown and a range that reaches the event.
+  let focusKey = params.get("ev") || location.hash.slice(1);
+  const evDate = /(\d{4}-\d{2}-\d{2})$/.exec(params.get("ev") || "");
+  if (evDate) {
+    state.age = "";
+    const days = (MH.parseYmd(evDate[1]) - new Date()) / 86400000;
+    state.range = days < 7 ? 7 : days < 14 ? 14 : 31;
+  }
   const ROUTINE = ["jumuah", "fajr-halaqa", "isha-halaqa"];
   let current = [];
 
@@ -91,7 +103,7 @@
         return `<h3 style="margin:28px 0 12px;font-size:1.3rem">${isToday ? "Today" : MH.fmtDate(d)} <span class="muted small" style="font-weight:400">· ${MH.fmtHijri(d)}</span></h3><div class="grid">${byDay[k].map(card).join("")}</div>`;
       }).join("");
     }
-    if (location.hash) { const el = document.getElementById(location.hash.slice(1)); if (el) { el.style.boxShadow = "0 0 0 3px var(--gold)"; el.scrollIntoView({ block: "center" }); } }
+    if (focusKey) { const el = document.getElementById(focusKey); if (el) { el.style.boxShadow = "0 0 0 3px var(--gold)"; el.scrollIntoView({ block: "center" }); } focusKey = null; }
   }
 
   function card(e) {
@@ -99,17 +111,14 @@
     const match = e.score >= 75 ? `<span class="pill gold match">${MH.icon("star")} Great match</span>` : "";
     return `<article class="card ev" id="${e.key}">
       ${match}
-      <div class="when"><div class="date-badge"><div class="m">${e.start.toLocaleDateString([], { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
-      <div><div class="meta">${e.start.toLocaleDateString([], { weekday: "long" })}</div><div style="font-weight:600">${MH.fmtTime(e.start)} – ${MH.fmtTime(e.end)}</div></div></div>
+      <div class="when"><div class="date-badge"><div class="m">${e.start.toLocaleDateString(MH.uiLocale(), { month: "short" })}</div><div class="d">${e.start.getDate()}</div></div>
+      <div><div class="meta">${e.start.toLocaleDateString(MH.uiLocale(), { weekday: "long" })}</div><div style="font-weight:600">${MH.fmtTime(e.start)} – ${MH.fmtTime(e.end)}</div></div></div>
       <h3 style="margin-top:6px${match ? ";padding-inline-end:110px" : ""}">${MH.esc(e.title)}</h3>
       <p class="muted" style="margin:0">${MH.esc(e.desc)}</p>
       <div class="meta">${MH.icon("pin")}<span>${MH.esc(e.place)}${e.cost ? " · " + MH.esc(e.cost) : ""}</span></div>
       ${e.sample ? `<div class="meta">${MH.icon("clock")}<span>${e.after ? "Time follows " + e.after[0].toUpperCase() + e.after.slice(1) + " prayer" : "Sample time"}. Confirm with the mosque.</span></div>` : ""}
       <div class="tags"><span class="pill">${MH.ageLabel(e)}</span>${aud ? `<span class="pill gold">${aud}</span>` : ""}${e.interests.filter(i => !(aud && i === "sisters")).map(i => `<span class="pill gray">${MH.interestName(i)}</span>`).join("")}</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn sm ghost" data-ics="${e.key}">${MH.icon("plus")} Add to calendar</button>
-        <a class="btn sm ghost" href="planner.html?add=${encodeURIComponent(e.key)}&date=${MH.ymd(e.start)}">Plan my day around it</a>
-      </div>
+      ${MH.eventActions(e, `<a class="btn sm ghost" href="planner.html?add=${encodeURIComponent(e.key)}&date=${MH.ymd(e.start)}">Plan my day around it</a>`)}
     </article>`;
   }
 
@@ -123,11 +132,7 @@
     });
     $("q").oninput = e => { state.q = e.target.value; render(); };
     $("hide-daily").onchange = e => { state.hideDaily = e.target.checked; render(); };
-    $("list").addEventListener("click", e => {
-      const b = e.target.closest("[data-ics]"); if (!b) return;
-      const ev = current.find(x => x.key === b.dataset.ics);
-      if (ev) { MH.download(ev.id + ".ics", MH.icsFor([ev]), "text/calendar"); MH.toast("Calendar file downloaded"); }
-    });
+    MH.bindEventMenus($("list"), key => current.find(x => x.key === key));
     $("ics").onclick = () => { MH.download("masjidhub-events.ics", MH.icsFor(current), "text/calendar"); MH.toast(`${current.length} events downloaded`); };
     MH.onPrefs(render);
     render();

@@ -6,9 +6,13 @@
 <title>Islamic Calendar · MasjidHub</title>
 <meta name="description" content="Hijri and Gregorian dates side by side, with Islamic holidays, sunnah fasts, and mosque events.">
 <meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="color-scheme" content="light dark">
 <script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/site.css">
@@ -72,7 +76,7 @@
     buildEvents();
     const y = view.getFullYear(), m = view.getMonth(), first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
     const hFirst = MH.hijri(first), hLast = MH.hijri(last);
-    $("greg-month").textContent = first.toLocaleDateString([], { month: "long", year: "numeric" });
+    $("greg-month").textContent = first.toLocaleDateString(MH.uiLocale(), { month: "long", year: "numeric" });
     $("hijri-months").textContent = hFirst.month === hLast.month ? `${hFirst.name} ${hFirst.year}` : `${hFirst.name} – ${hLast.name} ${hLast.year}`;
     $("hijri-ar").textContent = hFirst.month === hLast.month ? hFirst.ar : `${hFirst.ar} – ${hLast.ar}`;
 
@@ -95,13 +99,13 @@
   function renderDetail() {
     const d = selected, h = MH.hijri(d), hd = MH.islamicDay(d), t = MH.todayTimes(d), f = fasting(d), evs = evByDay[MH.ymd(d)] || [];
     $("detail").innerHTML = `
-      <p class="eyebrow" style="margin:0">${d.toLocaleDateString([], { weekday: "long" })}</p>
-      <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</h3>
+      <p class="eyebrow" style="margin:0">${d.toLocaleDateString(MH.uiLocale(), { weekday: "long" })}</p>
+      <h3 style="margin:2px 0 0;font-size:1.5rem">${d.toLocaleDateString(MH.uiLocale(), { month: "long", day: "numeric", year: "numeric" })}</h3>
       <p style="margin:2px 0 0;color:var(--accent);font-weight:600">${h.day} ${h.name} ${h.year} AH <span class="arabic" style="color:var(--gold);font-weight:400">${h.ar}</span></p>
-      ${hd ? `<div class="notice" style="margin-top:12px"><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</div>` : ""}
+      ${hd ? `<div class="notice" style="margin-top:12px"><span><strong>${MH.esc(hd.t)}</strong><br>${MH.esc(hd.info)}</span></div>` : ""}
       ${f ? `<div class="notice ${f.no ? "danger" : "green"}" style="margin-top:10px">${MH.icon(f.no ? "alert" : "moon")}<span>${MH.esc(f.t)}</span></div>` : ""}
       <table class="ptable" style="margin-top:8px">${MH.PRAYERS.map(p => `<tr><td style="padding:8px 4px;font-size:1rem">${p.t}</td><td class="t" style="padding:8px 4px;font-size:1rem">${MH.fmtTime(t[p.id])}</td></tr>`).join("")}</table>
-      ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html#${e.key}" style="display:block;padding:6px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
+      ${evs.length ? `<h4 style="margin:14px 0 6px">Events</h4>${evs.map(e => `<a href="events.html?ev=${encodeURIComponent(e.key)}" style="display:block;padding:10px 0;border-top:1px solid var(--line)"><strong>${MH.fmtTime(e.start)}</strong> ${MH.esc(e.title)}</a>`).join("")}` : ""}`;
   }
 
   function renderUpcoming() {
