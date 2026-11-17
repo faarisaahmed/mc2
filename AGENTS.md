@@ -61,7 +61,8 @@ Every page loads scripts in this order:
 
 ### Stack
 - Do not add a framework, build tool, `package.json`, or transpiled code without the owner agreeing first.
-- Do not add new third-party libraries or CDNs without asking. The only one today is Leaflet 1.9.4 on `map.html`.
+- Do not add new third-party libraries or CDNs without asking. Approved today: Leaflet 1.9.4 on `map.html`, and the
+  Firebase JS SDK (13.1.0, from www.gstatic.com), loaded only through `assets/js/db.js`.
 - Write modern vanilla JS that runs directly in current browsers. No TypeScript, no JSX.
 - Reuse helpers in `core.js` (icons, nav, settings, prayer math) instead of duplicating them per page.
 
@@ -97,11 +98,23 @@ Every page loads scripts in this order:
 - When you change visible English text, the old key in each language file becomes stale. Update or flag it.
 - Mark text that must not be translated (names, Arabic, language names) with `translate="no"`.
 
+### Database (Firebase)
+
+- Firebase project `masjidhub-mc2`, Cloud Firestore only (no Firebase Hosting: the site stays on GitHub Pages).
+- All database access goes through `assets/js/db.js` (`window.MH_DB`). It loads the SDK lazily, the first time a page
+  needs it. Pages that use it add `<script src="assets/js/db.js"></script>` after `core.js`.
+- The web config in `db.js` is public by design. **`firestore.rules` is the security.** Every collection must be
+  denied by default and validated field by field. Any PR that touches `firestore.rules` must say so at the top of the
+  PR and explain who can read and write what. Never allow public `read` or `list` on anything holding personal data.
+- Deploy rules with `firebase deploy --only firestore` (owner only, after merge). Test rule changes in the emulator
+  first: `firebase emulators:start --only firestore`.
+- Collections today: `applications` (Add your mosque; anyone can create a validated one, nobody can read it from the site).
+
 ### Privacy
 - No accounts, cookies, analytics, or tracking. User data stays in `localStorage` under `mh:` keys via `MH.store`.
   When stored prefs need a migration, add a step to `PREFS_MIGRATIONS` in `core.js` and bump `PREFS_VERSION`.
   Never reset a setting the visitor may have chosen.
-- Network calls only to the existing map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when the user uses those features.
+- Network calls only to the existing map services (Esri tiles, OpenStreetMap Overpass and Nominatim) and Firebase, and only when the user uses those features.
 - Never commit API keys or secrets. Anything needing a key (e.g. a real AI planner) needs a server; propose it, don't hard-code it.
 
 ## Git workflow

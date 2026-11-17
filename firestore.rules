@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// MasjidHub Firestore rules. These ARE the security: the web config in assets/js/db.js is public.
+// Anything not allowed below is denied. Changes to this file need the owner's review.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // "Add your mosque" applications (join.html).
+    // Visitors can submit one, and withdraw it using the random id only they were given.
+    // Nobody can read or list applications from the site; the team reviews them in the Firebase console.
+    match /applications/{id} {
+      allow create: if validApplication(request.resource.data);
+      allow delete: if true;   // needs the unguessable doc id, which only the submitter's browser has
+      allow read, update: if false;
+    }
+
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+
+    function validApplication(d) {
+      return d.keys().hasOnly(["name", "address", "lat", "lng", "phone", "website", "method", "jumuah",
+                                "features", "contact", "role", "email", "notes", "status", "submitted"])
+        && d.keys().hasAll(["name", "address", "lat", "lng", "contact", "role", "email", "status", "submitted"])
+        && str(d.name, 2, 120)
+        && str(d.address, 5, 200)
+        && d.lat is number && d.lat >= -90 && d.lat <= 90
+        && d.lng is number && d.lng >= -180 && d.lng <= 180
+        && str(d.contact, 1, 100)
+        && str(d.role, 1, 40)
+        && str(d.email, 5, 200) && d.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && (!("phone" in d) || str(d.phone, 0, 40))
+        && (!("website" in d) || str(d.website, 0, 300))
+        && (!("method" in d) || str(d.method, 0, 20))
+        && (!("jumuah" in d) || str(d.jumuah, 0, 100))
+        && (!("notes" in d) || str(d.notes, 0, 2000))
+        && (!("features" in d) || (d.features is list && d.features.size() <= 20))
+        && d.status == "pending"
+        && d.submitted == request.time;
+    }
+  }
+}

@@ -173,7 +173,7 @@ The team asked for a demo that needs no paid keys. Here is exactly what is real.
 | Community chat | **Demo.** Messages stay in your browser. Sample posts are labelled. "Ask the Imam" never invents answers from a real person. |
 | Donations | **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's real donation page. |
 | Languages | **English only for now.** The site is built for translation (right-to-left included), and a language appears in the menu once its translation file exists and a fluent speaker has checked it. |
-| Add your mosque | **Demo.** Applications are saved in your browser and show on your map as "pending". |
+| Add your mosque | **Real.** Applications are sent to the MasjidHub team (Firebase Firestore) for review. A copy stays in your browser so the mosque shows on your map as "pending", and you can withdraw it. |
 | Install as an app | **Real.** Phones and computers can install MasjidHub from the browser. After one visit, every page except the map opens offline. Adhan reminders still need the app open. |
 
 ## Run it locally
@@ -244,7 +244,7 @@ after: "isha", mins: 60          // starts ~20 min after Isha, lasts 60 min; add
 ├── planner.html          AI day planner              (?add=<eventKey>&date=YYYY-MM-DD)
 ├── community.html        Community chat
 ├── map.html              Mosques near you (Leaflet)
-├── join.html             Add your mosque
+├── join.html             Add your mosque (sends applications to Firestore)
 ├── donate.html           Donations and zakat calculator
 ├── mosque.html           MCGP profile page
 ├── manifest.webmanifest  App name, icons and shortcuts for installing
@@ -283,7 +283,7 @@ Every page is plain HTML that loads `data.js` and `core.js`, then runs its own s
 
 ## Privacy
 
-No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features. To work offline, the app saves the site's own files (pages, styles, scripts, fonts) on your device; it never saves your location searches or map tiles.
+No accounts, cookies, or analytics. Settings, planner drafts, and chat messages are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features. The one exception is **Add your mosque**: submitting it sends the application, including your name and email, to the MasjidHub team's database (Google Firebase). Nobody can read applications from the site; only the team sees them, to verify the mosque. To work offline, the app saves the site's own files (pages, styles, scripts, fonts) on your device; it never saves your location searches or map tiles.
 
 ## Roadmap
 

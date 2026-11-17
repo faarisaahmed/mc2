@@ -40,7 +40,7 @@
     <div class="wrap-narrow">
       <div class="section-head" style="text-align:center"><p class="eyebrow">Application</p><h2 class="title">Tell us about your mosque.</h2><p class="lead">Takes about 3 minutes.</p></div>
       <form class="panel" id="form" novalidate>
-        <div class="notice" style="margin-bottom:18px"><i data-ic="flask"></i><span><strong>Demo:</strong> your application is saved only in this browser and shows on your map as “pending”. Nothing is sent, so nobody will contact you yet.</span></div>
+        <div class="notice" style="margin-bottom:18px"><i data-ic="flask"></i><span><strong>Early access:</strong> your application is sent to the MasjidHub team, who will review it and contact you by email. Your contact details are never shown on the site.</span></div>
         <h3 style="margin:0 0 14px">1 · The mosque</h3>
         <div class="field"><label for="name">Mosque name *</label><input type="text" id="name" required autocomplete="organization"></div>
         <div class="field"><label for="address">Street address *</label><input type="text" id="address" required autocomplete="street-address" placeholder="123 Main St, City, State ZIP"><span class="hint" id="geo-hint">We'll place it on the map from this address.</span></div>
@@ -60,7 +60,7 @@
           <div class="field"><label for="contact">Your name *</label><input type="text" id="contact" required autocomplete="name"></div>
           <div class="field"><label for="role">Your role *</label><select id="role" required><option value="">Choose…</option><option>Imam</option><option>Board member</option><option>Administrator</option><option>Volunteer</option><option>Community member</option></select></div>
         </div>
-        <div class="field"><label for="email">Email *</label><input type="email" id="email" required autocomplete="email"><span class="hint">In the full version, we'd contact you here to verify the mosque.</span></div>
+        <div class="field"><label for="email">Email *</label><input type="email" id="email" required autocomplete="email"><span class="hint">We'll contact you here to verify the mosque.</span></div>
         <div class="field"><label for="notes">Anything else?</label><textarea id="notes" placeholder="Programs, languages spoken, accessibility…"></textarea></div>
         <label style="display:flex;gap:10px;align-items:flex-start;margin:6px 0 18px"><input type="checkbox" id="ok" style="width:20px;height:20px;margin-top:2px;accent-color:var(--green)"> <span>I'm authorized to represent this mosque, or I'll share this with someone who is.</span></label>
         <p class="small" id="err" style="color:var(--danger);min-height:1.2em" role="alert"></p>
@@ -72,6 +72,7 @@
 </main>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/core.js"></script>
+<script src="assets/js/db.js"></script>
 <script>
 (function () {
   const $ = id => document.getElementById(id);
@@ -100,7 +101,12 @@
     $("features").onclick = e => { const b = e.target.closest("[data-f]"); if (!b) return; const f = b.dataset.f; picked.has(f) ? picked.delete(f) : picked.add(f); renderFeatures(); };
     $("mine").onclick = e => {
       const b = e.target.closest("[data-rm]"); if (!b) return;
-      const apps = MH.store.get("applications", []); apps.splice(+b.dataset.rm, 1); MH.store.set("applications", apps); renderMine(); MH.toast("Application withdrawn");
+      const apps = MH.store.get("applications", []), a = apps[+b.dataset.rm]; if (!a) return;
+      b.disabled = true;
+      // Older demo applications were never sent, so they have no dbId: just remove them here.
+      (a.dbId ? MH_DB.withdrawApplication(a.dbId) : Promise.resolve()).then(() => {
+        apps.splice(+b.dataset.rm, 1); MH.store.set("applications", apps); renderMine(); MH.toast("Application withdrawn");
+      }, () => { b.disabled = false; MH.toast("Couldn't withdraw it. Check your connection and try again."); });
     };
     $("form").onsubmit = async e => {
       e.preventDefault();
@@ -114,17 +120,23 @@
       let pos = null;
       try { pos = await geocode(val("address")); } catch (err) { /* offline */ }
       if (!pos) { $("submit").disabled = false; $("submit").textContent = "Submit application"; $("err").textContent = "We couldn't find that address. Try adding the city and state."; $("address").focus(); return; }
+      const app = { name: val("name"), address: val("address"), lat: pos.lat, lng: pos.lng, phone: val("phone"), website: val("website"),
+        method: $("method").value, jumuah: val("jumuah"), features: [...picked], contact: val("contact"), role: val("role"), email: val("email"), notes: val("notes") };
+      $("submit").textContent = "Sending…";
+      let dbId;
+      try { dbId = await MH_DB.addApplication(app); }
+      catch (err) { $("submit").disabled = false; $("submit").textContent = "Submit application"; $("err").textContent = "We couldn't send your application. Check your connection and try again."; return; }
+      // Keep a copy on this device so it shows on your map as pending and can be withdrawn.
       const apps = MH.store.get("applications", []);
-      apps.push({ id: "app-" + Date.now(), name: val("name"), short: val("name"), address: val("address"), lat: pos.lat, lng: pos.lng, phone: val("phone"), website: val("website"),
-        method: $("method").value, jumuah: val("jumuah"), features: [...picked], contact: val("contact"), role: val("role"), email: val("email"), notes: val("notes"), submitted: Date.now() });
+      apps.push(Object.assign({ id: "app-" + Date.now(), short: app.name, submitted: Date.now(), dbId }, app));
       MH.store.set("applications", apps);
       $("form").reset(); picked.clear(); picked.add("Five daily prayers"); picked.add("Jumu'ah"); renderFeatures(); renderMine();
       $("submit").disabled = false; $("submit").textContent = "Submit application";
       const bd = document.createElement("div");
       bd.className = "sheet-backdrop open";
       bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" style="text-align:center"><div style="color:var(--gold)">${MH.icon("mosque","ic-lg")}</div><h2>Application received</h2>
-        <p class="muted">It's saved on this device and shows on the map as pending. In the full version, here's what would happen next:</p>
-        <ol style="text-align:start;line-height:1.8"><li>We verify the mosque with you by email (1–3 days).</li><li>You get a simple dashboard to post events and update times.</li><li>Your mosque goes live for everyone nearby.</li></ol>
+        <p class="muted">Thank you. It's on its way to the MasjidHub team, and shows on your map as pending. What happens next:</p>
+        <ol style="text-align:start;line-height:1.8"><li>We contact you by email to verify the mosque.</li><li>Once verified, your mosque goes live for everyone nearby.</li><li>Later: a simple dashboard to post events and update times.</li></ol>
         <div class="actions" style="justify-content:center"><a class="btn" href="map.html">See it on the map</a></div></div>`;
       document.body.appendChild(bd);
       bd.onclick = ev => { if (ev.target === bd) bd.remove(); };
