@@ -119,6 +119,27 @@ Every page loads scripts in this order:
 - PR description: what changed, which pages you checked, and screenshots for visual changes.
 - For a large change, also link an explainer page in the PR.
 
+### Pull requests
+
+Faaris reviews every PR by hand. A PR that is quick to review gets merged quickly.
+
+- **Fill in `.github/pull_request_template.md` as the PR body.** `gh pr create --body ...` and `--fill` skip the
+  template, so read the file and pass the completed text yourself (e.g. `--body-file`). Keep every heading.
+- **One topic per PR.** A bug fix, a feature, or a docs change, not several bundled. As a guide, stay under about
+  300 changed lines and 10 files. If the work grew bigger, split it into several PRs, each one reviewable on its own.
+- **Branch from the team's `main`, not your fork's `main`.** Run `git fetch upstream && git switch -c fix/<name> upstream/main`.
+  The PR must not contain merge commits from your fork (e.g. "Merge pull request #12 from you/..."): their `#12` would
+  link to the wrong PR here. If it does, rebuild the branch from `upstream/main` and cherry-pick only your own commits.
+  (One-time setup in a fork: `git remote add upstream https://github.com/faarisaahmed/mc2.git`.)
+- **Everything the reviewer needs goes in the PR itself.** No private links (claude.ai artifacts, personal docs). Test
+  site links on your fork are welcome as an extra, never as a replacement for screenshots.
+- **Say what you did and didn't check.** "Not tested on a real iPhone" is useful. Don't claim a check you didn't run.
+- **Don't mix in unrelated changes.** No reformatting, renames, or README rewrites unless the PR is about them.
+  Agent tooling (`AGENTS.md`, `.claude/`) changes go in their own `docs/` PR.
+- **Before opening or updating**, rebase on the latest `upstream/main`, then re-run `/verify-page` on the touched pages.
+- **Draft first.** Open it with `gh pr create --draft` and mark it ready with `gh pr ready` once every box in
+  "How I checked it" is either ticked or explained.
+
 ### Working together
 
 Several people, each with their own AI agent, may change the code at the same time. These rules keep that from turning into conflicts.
