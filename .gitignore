@@ -1,0 +1,2 @@
+# Playwright MCP browser session files (snapshots, logs, scraped data)
+.playwright-mcp/

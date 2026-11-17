@@ -6,9 +6,13 @@
 <title>Mosques Near You · MasjidHub</title>
 <meta name="description" content="A live map of mosques around you, with directions and prayer times.">
 <meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="color-scheme" content="light dark">
 <script src="assets/js/boot.js"></script>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -66,7 +70,7 @@
     };
     let els;
     try { els = await Promise.any(OVERPASS.map(ask)); }
-    catch (e) { throw new Error("Couldn't reach the mosque database. Showing MasjidHub mosques only."); }
+    catch (e) { throw new Error(navigator.onLine === false ? "You're offline. Showing MasjidHub mosques only." : "Couldn't reach the mosque database. Showing MasjidHub mosques only."); }
     finally { ctrls.forEach(c => c.abort()); }
     const list = els.map(e => {
       const t = e.tags || {};
@@ -96,8 +100,19 @@
     if ($("status").textContent.startsWith("Finding")) $("status").textContent = `${near} mosque${near === 1 ? "" : "s"} within about 20 miles`;
   }
 
+  // Website tags come from OpenStreetMap (anyone can edit) or a visitor's form. Many leave out
+  // "https://" or list several sites with ";". Keep the first, add https:// if needed, and allow
+  // only http(s), so a "javascript:" link can never run on this site.
+  function webUrl(raw) {
+    let u = String(raw || "").split(";")[0].trim();
+    if (!u) return "";
+    if (!/^[a-z][a-z\d+.-]*:/i.test(u) || /^[^:/]+:\d+(\/|$)/.test(u)) u = "https://" + u.replace(/^\/+/, "");
+    try { const x = new URL(u); return (x.protocol === "http:" || x.protocol === "https:") && /^[^.\s%]+(\.[^.\s%]+)+$/.test(x.hostname) ? x.href : ""; } catch (e) { return ""; }
+  }
+
   function popupHtml(m) {
-    const t = MH.prayerTimes(new Date(), m.lat, m.lng, MH.prefs), next = MH.PRAYERS.filter(p => !p.notPrayer).find(p => t[p.id] > new Date());
+    const site = webUrl(m.website);
+    const t =MH.prayerTimes(new Date(), m.lat, m.lng, MH.prefs), next = MH.PRAYERS.filter(p => !p.notPrayer).find(p => t[p.id] > new Date());
     return `<h4>${MH.esc(m.name)}</h4>
       ${m.hub ? '<span class="pill gold">On MasjidHub</span> ' : ""}${m.pending ? '<span class="pill gray">Application pending</span>' : ""}
       <div class="small muted" style="margin:6px 0">${MH.esc(m.address || "")}${m.address ? " · " : ""}${MH.fmtDistance(m.km)} away</div>
@@ -105,17 +120,17 @@
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
         <a class="btn sm" style="color:#fff" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}">Directions</a>
         ${m.hub && !m.pending ? `<a class="btn sm ghost" href="mosque.html?id=${m.id}">Visit page</a>` : ""}
-        ${m.website ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${MH.esc(m.website)}">Website</a>` : ""}
+        ${site ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${MH.esc(site)}">Website</a>` : ""}
         <button class="btn sm ghost" data-times="${m.id}">Use for times</button>
       </div>`;
   }
 
   function draw() {
     if (layer) layer.remove();
-    layer = L.layerGroup().addTo(map);
     const f = $("filter").value.toLowerCase();
     const shown = all.filter(m => !f || m.name.toLowerCase().includes(f));
-    shown.forEach(m => {
+    if (map) layer = L.layerGroup().addTo(map);
+    if (map) shown.forEach(m => {
       m.marker = L.marker([m.lat, m.lng], { icon: icon(m.pending ? "pending" : m.hub ? "hub" : ""), title: m.name, zIndexOffset: m.hub ? 1000 : 0 })
         .bindPopup(() => popupHtml(m), { maxWidth: 280 }).addTo(layer);
       m.marker.on("click", () => select(m.id, false));
@@ -131,7 +146,7 @@
     const m = all.find(x => x.id === id); if (!m) return;
     activeId = id;
     document.querySelectorAll(".mosque-item").forEach(b => b.classList.toggle("active", b.dataset.id === id));
-    if (fly) { map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 14), { duration: .6 }); setTimeout(() => m.marker.openPopup(), 650); }
+    if (fly && map) { map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 14), { duration: .6 }); setTimeout(() => m.marker.openPopup(), 650); }
   }
 
   // Calm gray basemaps (Esri Canvas, no key) so the mosque pins stand out: Light Gray in light mode, Dark Gray in dark mode.
@@ -162,6 +177,21 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     const p = MH.prefs.loc;
+    // Leaflet comes from a CDN the service worker doesn't save, so offline there is no map.
+    // List the MasjidHub mosques instead, and reload once the connection is back.
+    if (!window.L) {
+      document.querySelector(".map-layout").classList.add("offline");
+      $("map").innerHTML = `<div class="empty">${MH.icon("pin")}<h3>You're offline</h3><p>The map needs an internet connection. It will load when you're back online.</p></div>`;
+      $("area").disabled = true;
+      $("me").disabled = true;
+      $("filter").oninput = draw;
+      center = { lat: p.lat, lng: p.lng };
+      all = MH.allMosques().map(m => Object.assign(m, { km: MH.distanceKm(center, m) })).sort((a, b) => a.km - b.km);
+      draw();
+      $("status").textContent = "You're offline. Showing MasjidHub mosques only.";
+      addEventListener("online", () => location.reload(), { once: true });
+      return;
+    }
     map = L.map("map", { zoomControl: true }).setView([p.lat, p.lng], 11);
     setTiles();
     // Follow the device's light/dark switch live, and the theme picked in Settings.
@@ -169,6 +199,8 @@
     MH.onPrefs(setTiles);
     setMe(p);
     load(p.lat, p.lng);
+    // If the search failed while offline, run it again once the connection is back.
+    addEventListener("online", () => { if ($("status").textContent.startsWith("You're offline")) load(center.lat, center.lng); });
 
     $("list").addEventListener("click", e => { const b = e.target.closest(".mosque-item"); if (b) select(b.dataset.id, true); });
     $("filter").oninput = draw;

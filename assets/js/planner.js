@@ -81,9 +81,16 @@
       if (afterM) { after = afterM[1].replace("zuhr", "dhuhr"); f = f.replace(new RegExp("after\\s+" + afterM[1], "i"), " "); }
       if (beforeM) { before = beforeM[1].replace("zuhr", "dhuhr"); f = f.replace(new RegExp("before\\s+" + beforeM[1], "i"), " "); }
 
-      // Wake / sleep markers
-      if (/\b(wake|get up|woke)\b/.test(lower)) { if (start != null) wake = start; return; }
-      if (/\b(sleep|bed|bedtime)\b/.test(lower) && !/\bnap\b/.test(lower)) { if (start != null) sleep = start < 300 ? start + 1440 : start < 720 && !/a\.?m/i.test(lower) ? start + 720 : start; else sleep = 22 * 60 + 30; return; }
+      // Wake / sleep markers. Without am/pm, a wake-up time is in the morning ("wake up at 6" is 6am),
+      // and a bedtime is in the evening, or just after midnight for 12 to 4 ("sleep at 1" is 1am).
+      const saidAmPm = /\d\s*(?:a\.?m\.?|p\.?m\.?)|\bnoon\b|\bmidnight\b/i.test(lower);
+      if (/\b(wake|get up|woke)\b/.test(lower)) { if (start != null) wake = !saidAmPm && start >= 780 ? start - 720 : start; return; }
+      if (/\b(sleep|bed|bedtime)\b/.test(lower) && !/\bnap\b/.test(lower)) {
+        if (start == null) sleep = 22 * 60 + 30;
+        else if (saidAmPm) sleep = start < 300 ? start + 1440 : start;
+        else { const h12 = start % 720; sleep = h12 < 300 ? h12 + 1440 : h12 + 720; }
+        return;
+      }
 
       // Part-of-day words
       if (start == null && !after && !before) {
@@ -174,7 +181,8 @@
         const before = busy.filter(b => b.end <= placed.start && b.end > w.start).pop();
         items.push({ kind: "prayer", label: w.t, start: placed.start, end: placed.end,
           why: delayed > 2 ? `Right after ${before ? before.label.toLowerCase() : "your last activity"}. You have until ${w.endLabel} (${MH.fmtTime(w.end)}).` : `At the adhan, ${MH.fmtTime(w.start)}. Window ends at ${w.endLabel}.` });
-        if (w.id === "fajr" && parsed.wake && parsed.wake > w.start) notes.push({ ic: "alert", t: `You wake at ${MH.fmtTime(parsed.wake)}, but Fajr ends at sunrise (${MH.fmtTime(t.sunrise)}). Set an alarm for ${MH.fmtTime(w.start)}, then you can rest again.` });
+        if (w.id === "fajr" && parsed.wake && parsed.wake > w.start && parsed.wake < w.end) notes.push({ ic: "info", t: `You wake at ${MH.fmtTime(parsed.wake)}. Pray Fajr before sunrise (${MH.fmtTime(t.sunrise)}).` });
+        if (w.id === "fajr" && parsed.wake && parsed.wake >= w.end) notes.push({ ic: "alert", t: `You wake at ${MH.fmtTime(parsed.wake)}, but Fajr ends at sunrise (${MH.fmtTime(t.sunrise)}). Set an alarm for ${MH.fmtTime(w.start)}, then you can rest again.` });
         if (w.id === "isha" && parsed.sleep && placed.start > parsed.sleep) notes.push({ ic: "info", t: `Pray Isha before bed. It starts at ${MH.fmtTime(w.start)}.` });
       } else {
         const cover = busy.find(b => overlaps(b, { start: w.start, end: w.end })) || busy[0];

@@ -55,7 +55,7 @@ The demo is built around the **[Muslim Center of Greater Princeton (MCGP)](https
   <tr>
     <td width="33%" valign="top">
       <h3>Accurate prayer times</h3>
-      Calculated in the browser for any location. Checked against the Aladhan API across 136 city, season, and method combinations. Hanafi Asr by default.
+      Calculated in the browser for any location. Checked against the Aladhan API for every day of a year, in 10 cities, with every method. Hanafi Asr by default.
     </td>
     <td width="33%" valign="top">
       <h3>Events for every age</h3>
@@ -105,7 +105,7 @@ The demo is built around the **[Muslim Center of Greater Princeton (MCGP)](https
 |---|---|
 | **Prayer times** | Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha for any location, with a live countdown, a monthly timetable, printing, and optional adhan notifications. |
 | **School of thought** | Hanafi by default (Asr when shadow = 2×), or Shafi'i, Maliki, and Hanbali (shadow = 1×). Seven Fajr and Isha methods: ISNA, MWL, Egypt, Umm al-Qura, Karachi, Tehran, and Jafari. |
-| **Qibla finder** | Great-circle bearing to the Kaaba and a live phone compass (iOS and Android) that says "turn left" or "turn right" and vibrates when you face the Qibla. Shows the distance to Makkah. |
+| **Qibla finder** | Great-circle bearing to the Kaaba and a live phone compass (iOS and Android) that says "turn left" or "turn right", and vibrates when you face the Qibla (Android; iPhones don't allow vibration from websites). Shows the distance to Makkah. |
 | **Events** | Adults, Teens, and Kids tabs (from the team's original sketch), plus Young adults and Seniors. Interest filters, a "Best for me" ranking, search, and `.ics` export. |
 | **AI Day Planner** | Understands schedules like "School 8 to 3, soccer at 4:30, homework after dinner, sleep at 10:30". Places every prayer in its valid window, handles Jumu'ah on Fridays, and suggests matching events. |
 | **Community** | Chat channels: General, Ask the Imam, Events & Carpools, Youth, Sisters, and Volunteers. |
@@ -122,9 +122,10 @@ Prayer times are the part that matters most, so every number was checked against
 
 **Prayer times**
 - Calculated in the browser with the standard astronomical method most prayer apps use: sun declination and the equation of time, twilight angles for Fajr and Isha, and shadow length for Asr. See `prayerTimes()` in `assets/js/core.js`.
-- Checked against the [Aladhan API](https://aladhan.com/prayer-times-api) for **136 combinations**: 5 cities (West Windsor, London, Karachi, Sydney, Oslo) × 4 seasons × 7 methods × both Asr schools.
-  - Fajr, Sunrise, Dhuhr, Maghrib, and Isha **matched to the minute in every case**.
-  - Asr matched in West Windsor. In a few far-from-equator cases it differed from Aladhan by 2 to 3 minutes, and an independent high-precision check (NOAA solar equations) found MasjidHub was the closer one. Example: London, 24 Oct 2026. Precise Asr 15:17:50, MasjidHub 15:18, Aladhan 15:20.
+- Checked against the [Aladhan API](https://aladhan.com/prayer-times-api) for **every day of 2027**: 10 cities (West Windsor, Los Angeles, Toronto, London, Oslo, Cairo, Makkah, Karachi, Jakarta, Sydney) × all 7 methods with Hanafi Asr, plus ISNA with standard Asr. 175,200 times in all.
+  - Fajr, Sunrise, Dhuhr, and Maghrib **matched to the minute every day**. Isha matched too, apart from two Aladhan quirks: it labels summer Isha in Oslo (about midnight) with the wrong date, and on Eid al-Fitr it still uses the Ramadan Isha gap.
+  - Umm al-Qura Isha is 90 minutes after Maghrib, and 120 minutes in Ramadan, as Aladhan does.
+  - Asr was within a minute of Aladhan 99% of the time, up to 5 minutes apart at high latitudes. An independent high-precision check (NOAA solar equations) found MasjidHub was the closer one: never more than 0.83 minutes from the precise time, against up to 5 minutes for Aladhan.
 - High latitudes use the angle-based rule, the same default Aladhan uses.
 - The site shows **adhan (start) times**. Iqamah is set by each mosque, so the site reminds people to confirm with their masjid.
 
@@ -171,7 +172,9 @@ The team asked for a demo that needs no paid keys. Here is exactly what is real.
 | AI Day Planner | **Demo engine.** A rule-based planner that runs in the browser with no API key. It really checks prayer windows, but it is not a large language model. |
 | Community chat | **Demo.** Messages stay in your browser. Sample posts are labelled. "Ask the Imam" never invents answers from a real person. |
 | Donations | **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's real donation page. |
+| Languages | **English only for now.** The site is built for translation (right-to-left included), and a language appears in the menu once its translation file exists and a fluent speaker has checked it. |
 | Add your mosque | **Demo.** Applications are saved in your browser and show on your map as "pending". |
+| Install as an app | **Real.** Phones and computers can install MasjidHub from the browser. After one visit, every page except the map opens offline. Adhan reminders still need the app open. |
 
 ## Run it locally
 
@@ -244,13 +247,15 @@ after: "isha", mins: 60          // starts ~20 min after Isha, lasts 60 min; add
 ├── join.html             Add your mosque
 ├── donate.html           Donations and zakat calculator
 ├── mosque.html           MCGP profile page
+├── manifest.webmanifest  App name, icons and shortcuts for installing
+├── sw.js                 Service worker: saves the site's files so pages open offline
 ├── assets/
 │   ├── css/site.css      All styles (design tokens at the top)
 │   ├── js/boot.js        Applies saved theme and text size before the page paints
 │   ├── js/core.js        Shared engine: settings, prayer math, Hijri, Qibla, icons, nav, setup
 │   ├── js/data.js        Mosques, events, interests, age groups   ← edit content here
 │   ├── js/planner.js     Day planner engine (schedule parser and prayer placement)
-│   └── img/icon.svg      Logo and favicon
+│   └── img/              Logo (icon.svg) and app icons (PNG)
 └── docs/readme/          Images used in this README
 ```
 
@@ -278,7 +283,7 @@ Every page is plain HTML that loads `data.js` and `core.js`, then runs its own s
 
 ## Privacy
 
-No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features.
+No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and applications are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features. To work offline, the app saves the site's own files (pages, styles, scripts, fonts) on your device; it never saves your location searches or map tiles.
 
 ## Roadmap
 
@@ -286,7 +291,7 @@ No accounts, cookies, or analytics. Settings, planner drafts, chat messages, and
 2. **Mosque dashboard.** Approved mosques sign in to post events, set iqamah and Jumu'ah times, and manage causes.
 3. **Real chat.** A moderated backend with sign-in, reporting, and imam-verified answers.
 4. **Real payments.** Connect each mosque's own provider (Stripe, PayPal, LaunchGood).
-5. **Installable app.** A PWA with offline prayer times and adhan reminders.
+5. **Installable app.** Done: installable, with offline prayer times. Next: adhan reminders that work with the app closed, then Play Store and App Store versions.
 
 ## Team
 
