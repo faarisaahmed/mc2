@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account · MasjidHub</title>
+<meta name="description" content="Your MasjidHub account: settings on every device, events you're going to, notifications, and the app.">
+<meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Account</h1><div class="right"></div></div></div>
+<main>
+  <section class="section">
+    <div class="wrap-narrow stack">
+      <div id="who" aria-live="polite"><p class="muted">Loading…</p></div>
+
+      <div class="panel" id="notifications">
+        <h2 class="panel-h">${bell} Notifications</h2>
+        <p class="small muted" style="margin:0 0 14px">Reminders work while MasjidHub is open, or installed as an app and running in the background. They're saved on this device.</p>
+        <div class="setting-row">
+          <div><strong>Adhan reminders</strong><div class="small muted" id="n-status"></div></div>
+          <button class="btn sm" id="n-toggle" type="button" aria-pressed="false">Turn on</button>
+        </div>
+        <div id="n-more">
+          <span class="label">Remind me for</span>
+          <div class="chips" id="n-prayers" style="margin:8px 0 16px"></div>
+          <span class="label" id="n-when-l">When</span>
+          <div class="seg" id="n-when" role="group" aria-labelledby="n-when-l" style="margin:8px 0 16px">
+            <button type="button" data-v="0">At the adhan</button><button type="button" data-v="10">10 min before</button><button type="button" data-v="15">15 min before</button>
+          </div>
+          <div class="setting-row">
+            <div><strong>Urgent mosque announcements</strong><div class="small muted">Janazah and closure notices from your mosque, shown when MasjidHub opens.</div></div>
+            <button class="btn sm ghost" id="n-ann" type="button" aria-pressed="false">Off</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-h">${gear} Your settings</h2>
+        <p class="small muted" style="margin:0 0 12px" id="s-sync"></p>
+        <div id="s-summary" class="small" style="line-height:1.9;margin-bottom:14px"></div>
+        <button class="btn sm ghost" id="s-change" type="button">Change settings</button>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-h">${mobile} Get the app</h2>
+        <div id="install"></div>
+        <p class="small muted" id="install-help" style="margin:10px 0 0"></p>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/content.js"></script>
+<script src="assets/js/core.js"></script>
+<script src="assets/js/db.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), e = MH.esc;
+  const next = new URLSearchParams(location.search).get("next");
+  const safeNext = next && /^[a-z]+\.html(\?[^#]*)?$/.test(next) ? next : null;   // only our own pages
+  let mode = "signin";   // signin | create | reset
+
+  /* ---------- Signed out ---------- */
+  function signedOutHtml() {
+    return `<div class="panel">
+      <h2 class="panel-h" style="margin-bottom:6px">${MH.icon("user")} ${mode === "create" ? "Create your account" : mode === "reset" ? "Reset your password" : "Sign in"}</h2>
+      <p class="muted" style="margin:0 0 18px">${safeNext ? "Sign in to sign up for events and volunteer. " : ""}An account keeps your settings on every device and lets you sign up for events. Mosque admins sign in here too.</p>
+      ${mode !== "reset" ? `<button class="btn block ghost" id="g" type="button">${GOOGLE} Continue with Google</button>
+      <p class="or"><span>or with email</span></p>` : ""}
+      <form id="f" novalidate>
+        ${mode === "create" ? `<div class="field"><label for="f-name">Your name</label><input id="f-name" type="text" autocomplete="name" required></div>` : ""}
+        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" required></div>
+        ${mode !== "reset" ? `<div class="field"><label for="f-pw">Password</label><input id="f-pw" type="password" autocomplete="${mode === "create" ? "new-password" : "current-password"}" required minlength="8">${mode === "create" ? `<span class="hint">At least 8 characters.</span>` : ""}</div>` : ""}
+        <p class="small" id="f-err" role="alert" style="color:var(--danger);min-height:1.2em;margin:0 0 8px"></p>
+        <button class="btn block" type="submit" id="f-go">${mode === "create" ? "Create account" : mode === "reset" ? "Send reset link" : "Sign in"}</button>
+      </form>
+      <p class="small" style="margin:16px 0 0;display:flex;gap:16px;flex-wrap:wrap">
+        ${mode !== "signin" ? `<a href="#" data-mode="signin">I have an account</a>` : `<a href="#" data-mode="create">Create an account</a><a href="#" data-mode="reset">Forgot password?</a>`}
+      </p>
+      <p class="small muted" style="margin:14px 0 0">We store your name, email and settings to run your account, and never share them. You can delete your account here any time.</p>
+    </div>`;
+  }
+  const GOOGLE = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h6a5.1 5.1 0 0 1-2.2 3.4v2.8h3.6c2.1-1.9 3.2-4.8 3.2-8.2z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7H2.1a11 11 0 0 0 0 9.9z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z"/></svg>';
+
+  function bindSignedOut() {
+    $("who").querySelectorAll("[data-mode]").forEach(a => a.onclick = ev => { ev.preventDefault(); mode = a.dataset.mode; drawWho(null); });
+    if ($("g")) $("g").onclick = () => run(() => MH_DB.signInGoogle());
+    $("f").onsubmit = ev => {
+      ev.preventDefault();
+      const email = $("f-email").value.trim(), pw = $("f-pw") ? $("f-pw").value : "", name = $("f-name") ? $("f-name").value.trim() : "";
+      if (mode === "create" && !name) return err("Please add your name.", "f-name");
+      if (!/^\S+@\S+\.\S+$/.test(email)) return err("Please check your email address.", "f-email");
+      if (mode !== "reset" && pw.length < (mode === "create" ? 8 : 1)) return err(mode === "create" ? "Please use a password of at least 8 characters." : "Please enter your password.", "f-pw");
+      if (mode === "reset") return run(() => MH_DB.resetPassword(email).then(() => { mode = "signin"; drawWho(null); MH.toast("Check your email for a link to reset your password."); }), true);
+      run(() => mode === "create" ? MH_DB.createAccount(name, email, pw) : MH_DB.signInEmail(email, pw));
+    };
+  }
+  function err(msg, focusId) { $("f-err").textContent = msg; if (focusId && $(focusId)) $(focusId).focus(); }
+  async function run(fn, stay) {
+    const btns = $("who").querySelectorAll("button"); btns.forEach(b => b.disabled = true);
+    try {
+      await fn();
+      if (stay) return;
+      if (safeNext) { location.href = safeNext; return; }
+      await drawSignedIn();
+    } catch (ex) { btns.forEach(b => b.disabled = false); if ($("f-err")) err(ex.message); else MH.toast(ex.message); }
+  }
+
+  /* ---------- Signed in ---------- */
+  async function drawSignedIn() {
+    const u = await MH_DB.user();
+    if (!u) return drawWho(null);
+    drawWho(u);
+    const [r, rsvps, apps] = await Promise.all([
+      MH_DB.roles().catch(() => ({ siteAdmin: false, mosques: [], invites: [] })),
+      MH_DB.refreshRsvps().catch(() => []),
+      myApplications(u).catch(() => [])
+    ]);
+    drawRoles(u, r); drawRsvps(rsvps); drawApps(apps);
+    drawSettings();
+  }
+
+  function drawWho(u) {
+    if (!u) { $("who").innerHTML = signedOutHtml(); bindSignedOut(); drawSettings(); return; }
+    $("who").innerHTML = `<div class="panel">
+      <div class="who-row"><span class="avatar" aria-hidden="true">${e((u.displayName || u.email || "?").trim()[0].toUpperCase())}</span>
+        <div style="min-width:0"><h2 style="margin:0;font-size:1.3rem" id="w-name">${e(u.displayName || "Your account")}</h2><div class="small muted" style="overflow-wrap:anywhere">${e(u.email || "")}</div></div></div>
+      ${u.emailVerified ? "" : `<div class="notice" style="margin-top:16px">${MH.icon("alert")}<span>Please verify your email: we sent a link to ${e(u.email)}. You need this to join a mosque's admin team.
+        <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" id="v-done" type="button">I've verified it</button><button class="btn sm ghost" id="v-again" type="button">Send it again</button></span></span></div>`}
+      <div class="row" style="margin-top:16px;align-items:end"><div class="field" style="margin:0"><label for="w-edit">Your name</label><input id="w-edit" type="text" autocomplete="name" value="${e(u.displayName || "")}"></div>
+        <div><button class="btn sm ghost" id="w-save" type="button">Save name</button></div></div>
+    </div>
+    <div id="roles"></div>
+    <div class="panel"><h2 class="panel-h">${MH.icon("calendar")} Going and volunteering</h2><div id="rsvps"><p class="small muted">Loading…</p></div></div>
+    <div id="apps"></div>
+    <div class="panel">
+      <h2 class="panel-h">${MH.icon("lock")} Sign out or delete</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn sm ghost" id="out" type="button">Sign out</button><button class="btn sm danger" id="del" type="button">Delete my account</button></div>
+      <p class="small muted" style="margin:12px 0 0">Deleting removes your account, your saved settings and your event sign-ups. Settings on this device stay.</p>
+    </div>`;
+    if ($("v-done")) $("v-done").onclick = async () => { const nu = await MH_DB.reloadUser().catch(() => null); if (nu && nu.emailVerified) { MH.toast("Email verified. Thank you!"); drawSignedIn(); } else MH.toast("Not verified yet. Open the link in the email, then try again."); };
+    if ($("v-again")) $("v-again").onclick = () => MH_DB.resendVerification().then(() => MH.toast("Sent. Check your inbox and spam folder."), ex => MH.toast(ex.message));
+    $("w-save").onclick = () => { const n = $("w-edit").value.trim(); if (!n) return MH.toast("Please add your name."); MH_DB.setName(n).then(() => { $("w-name").textContent = n; MH.toast("Saved"); }, ex => MH.toast(ex.message)); };
+    $("out").onclick = () => MH_DB.signOut().then(() => { MH.toast("Signed out"); mode = "signin"; drawWho(null); });
+    $("del").onclick = () => {
+      if (!confirm("Delete your MasjidHub account? This removes your account, saved settings and event sign-ups. It can't be undone.")) return;
+      MH_DB.deleteAccount().then(() => { MH.store.set("account", null); MH.toast("Your account was deleted"); drawWho(null); }, ex => MH.toast(ex.message));
+    };
+  }
+
+  function mosqueName(id) { const m = MH_DATA.mosques.find(x => x.id === id); return m ? m.name : id; }
+  function drawRoles(u, r) {
+    if (!r.siteAdmin && !r.mosques.length && !r.invites.length) { $("roles").innerHTML = ""; return; }
+    $("roles").innerHTML = `<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Mosque admin</h2>
+      ${r.invites.map(i => `<div class="setting-row"><div><strong>You're invited to help run ${e(i.mosqueName || mosqueName(i.mosque))}</strong><div class="small muted">As ${i.role === "owner" ? "an owner" : "an editor"}</div></div>
+        <button class="btn sm gold" type="button" data-accept="${e(i.mosque)}">Accept</button></div>`).join("")}
+      ${r.siteAdmin ? `<div class="setting-row"><div><strong>Site admin</strong><div class="small muted">Review mosque applications and manage every mosque.</div></div><a class="btn sm" href="admin.html">Open dashboard</a></div>` : ""}
+      ${r.mosques.map(m => `<div class="setting-row"><div><strong>${e(mosqueName(m.id))}</strong><div class="small muted">${m.role === "owner" ? "Owner" : "Editor"}</div></div><a class="btn sm" href="admin.html?m=${encodeURIComponent(m.id)}">Open dashboard</a></div>`).join("")}
+    </div>`;
+    $("roles").querySelectorAll("[data-accept]").forEach(b => b.onclick = () => {
+      b.disabled = true;
+      MH_DB.acceptInvite(r.invites.find(i => i.mosque === b.dataset.accept)).then(() => { MH.toast("Welcome to the team!"); drawSignedIn(); }, ex => { b.disabled = false; MH.toast(ex.message); });
+    });
+  }
+
+  function drawRsvps(list) {
+    const today = MH.ymd(new Date());
+    const up = list.filter(r => r.date >= today).sort((a, b) => a.date < b.date ? -1 : 1);
+    $("rsvps").innerHTML = up.length ? up.map(r => `<div class="setting-row"><div><strong>${e(r.title || r.event)}</strong>
+        <div class="small muted">${MH.fmtDate(MH.parseYmd(r.date), { weekday: "short", month: "short", day: "numeric" })} · ${e(mosqueName(r.mosque))} · ${r.kind === "volunteer" ? "Volunteering" : "Going"}</div></div>
+        <a class="btn sm ghost" href="events.html?ev=${encodeURIComponent(r.event + r.date)}">View</a></div>`).join("")
+      : `<p class="small muted" style="margin:0">Nothing yet. Events that take sign-ups have an "I'm going" or "Volunteer" button. <a href="events.html">Browse events</a></p>`;
+  }
+
+  async function myApplications(u) {
+    const { fs, db } = await MH_DB.load();
+    const s = await fs.getDocs(fs.query(fs.collection(db, "applications"), fs.where("uid", "==", u.uid)));
+    return s.docs.map(d => d.data());
+  }
+  function drawApps(apps) {
+    $("apps").innerHTML = apps.length ? `<div class="panel"><h2 class="panel-h">${MH.icon("mosque")} Your mosque applications</h2>
+      ${apps.map(a => `<div class="setting-row"><div><strong>${e(a.name)}</strong><div class="small muted">${e(a.address)}</div></div>
+        <span class="pill ${a.status === "approved" ? "" : "gray"}">${a.status === "approved" ? "Approved" : a.status === "rejected" ? "Not approved" : "Pending review"}</span></div>`).join("")}
+      ${apps.some(a => a.status === "approved") ? `<p class="small muted" style="margin:10px 0 0">Approved: your invite to manage the mosque is above once your email is verified.</p>` : ""}</div>` : "";
+  }
+
+  /* ---------- Settings, notifications, app ---------- */
+  function drawSettings() {
+    const p = MH.prefs, acct = MH.store.get("account", null);
+    const age = MH_DATA.ageGroups.find(a => a.id === p.age);
+    $("s-sync").textContent = acct ? "Saved to your account, so they follow you to your other devices (text size and theme stay per device)." : "Saved on this device. Sign in to keep them on every device.";
+    $("s-summary").innerHTML = [
+      ["Location", p.loc && p.loc.name], ["Prayer method", MH.METHODS[p.method] && MH.METHODS[p.method].t],
+      ["Asr", p.asr === "hanafi" ? "Hanafi" : "Shafi'i, Maliki, Hanbali"], ["Age group", age ? age.t : "Not set"],
+      ["Interests", p.interests.length ? p.interests.map(MH.interestName).join(", ") : "Not set"]
+    ].map(([k, v]) => `<div><span class="muted">${k}:</span> ${e(v || "")}</div>`).join("");
+  }
+
+  const ALL = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+  function drawNotify() {
+    const on = MH.store.get("notify", false) && MH.canNotify(), which = MH.store.get("notify-prayers", ALL), before = MH.store.get("notify-before", 0);
+    const blocked = "Notification" in window && Notification.permission === "denied";
+    $("n-toggle").textContent = on ? "Turn off" : "Turn on"; $("n-toggle").setAttribute("aria-pressed", on);
+    $("n-toggle").classList.toggle("ghost", on);
+    $("n-status").textContent = !("Notification" in window) ? (isIOS() ? "On iPhone, add MasjidHub to your Home Screen first (see Get the app below)." : "This browser can't show notifications.")
+      : blocked ? "Notifications are blocked for this site. Allow them in your browser or phone settings." : on ? "On" : "Off";
+    $("n-more").hidden = !on;
+    $("n-prayers").innerHTML = ALL.map(id => { const p = MH.PRAYERS.find(x => x.id === id); return `<button type="button" class="chip" data-p="${id}" aria-pressed="${which.includes(id)}">${p.t}</button>`; }).join("");
+    document.querySelectorAll("#n-when button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.v === before));
+    const ann = MH.store.get("notify-ann", false);
+    $("n-ann").textContent = ann ? "On" : "Off"; $("n-ann").setAttribute("aria-pressed", ann); $("n-ann").classList.toggle("ghost", !ann);
+  }
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const saved = () => { if (MH.store.get("account", null)) MH_DB.pushPrefs().catch(() => {}); };
+
+  function bindNotify() {
+    $("n-toggle").onclick = async () => {
+      if (MH.store.get("notify", false) && MH.canNotify()) { MH.store.set("notify", false); drawNotify(); return MH.toast("Reminders are off."); }
+      if (!("Notification" in window)) return MH.toast(isIOS() ? "On iPhone, add MasjidHub to your Home Screen first, then open it from there." : "This browser can't show notifications.");
+      const perm = await Notification.requestPermission();
+      MH.store.set("notify", perm === "granted"); drawNotify(); MH.checkReminders();
+      MH.toast(perm === "granted" ? "Reminders are on." : "Notifications are blocked. Allow them in your browser settings.");
+    };
+    $("n-prayers").onclick = ev => {
+      const b = ev.target.closest("[data-p]"); if (!b) return;
+      let which = MH.store.get("notify-prayers", ALL);
+      which = which.includes(b.dataset.p) ? which.filter(x => x !== b.dataset.p) : which.concat(b.dataset.p);
+      MH.store.set("notify-prayers", which); drawNotify(); saved();
+    };
+    document.querySelectorAll("#n-when button").forEach(b => b.onclick = () => { MH.store.set("notify-before", +b.dataset.v); drawNotify(); saved(); });
+    $("n-ann").onclick = () => { MH.store.set("notify-ann", !MH.store.get("notify-ann", false)); drawNotify(); saved(); };
+  }
+
+  function drawInstall() {
+    MH.installCard($("install"));
+    const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    $("install-help").innerHTML = installed ? "You're using the MasjidHub app. Nice!"
+      : isIOS() ? "On iPhone or iPad: open this site in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>. Open MasjidHub from the new icon to allow notifications."
+      : /Android/.test(navigator.userAgent) ? "On Android: in Chrome, tap the <b>⋮</b> menu, then <b>Add to Home screen</b> or <b>Install app</b>. MasjidHub then opens like any other app, from your home screen and app drawer."
+      : "On a computer: in Chrome or Edge, click the install icon at the end of the address bar.";
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Panel headings use icons from core.js.
+    document.querySelectorAll(".panel-h").forEach(h => { h.innerHTML = h.innerHTML.replace(/\$\{(\w+)\}/g, (_, n) => MH.icon(n)); });
+    drawNotify(); bindNotify(); drawInstall(); drawSettings();
+    $("s-change").onclick = () => MH.openSettings();
+    MH.onPrefs(drawSettings);
+    if (!location.protocol.startsWith("http")) { $("who").innerHTML = `<div class="notice">${MH.icon("alert")}<span>Accounts need the site to be served over http(s).</span></div>`; return; }
+    if (!MH.store.get("account", null)) drawWho(null);   // draw the form at once; Firebase loads in the background
+    MH_DB.user().then(u => {
+      // Still signed out: keep the form that's already showing, so nothing the person typed is lost.
+      if (!u) { const had = MH.store.get("account", null); if (had) MH.store.set("account", null); if (had || !$("f")) drawWho(null); return; }
+      // Coming back from Google's sign-in page (popup blocked) or a first visit after signing in elsewhere.
+      if (!MH.store.get("prefs-synced", 0)) MH_DB.syncNow().catch(() => {});
+      if (safeNext) { location.href = safeNext; return; }
+      drawSignedIn();
+    }, () => { $("who").innerHTML = `<div class="notice">${MH.icon("alert")}<span>Couldn't reach MasjidHub accounts. Check your connection and reload.</span></div>`; });
+  });
+})();
+</script>
+</body>
+</html>

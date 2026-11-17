@@ -1,4 +1,8 @@
 {
   "indexes": [],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "members", "fieldPath": "uid", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
+    { "collectionGroup": "invites", "fieldPath": "email", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
+    { "collectionGroup": "rsvps", "fieldPath": "uid", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] }
+  ]
 }

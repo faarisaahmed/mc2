@@ -2,23 +2,176 @@ rules_version = '2';
 
 // MasjidHub Firestore rules. These ARE the security: the web config in assets/js/db.js is public.
 // Anything not allowed below is denied. Changes to this file need the owner's review.
+//
+// Roles
+//   visitor      no account: reads public mosque info, events and announcements; can apply to add a mosque
+//   member       signed in: own profile and settings, RSVPs and volunteer sign-ups
+//   editor       mosques/{m}/members/{uid} with role "editor": events, announcements, iqamah times, sees RSVPs
+//   owner        role "owner": everything an editor can, plus the mosque's profile and its team
+//   site admin   admins/{uid} exists (added by hand in the Firebase console): applications and every mosque
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // "Add your mosque" applications (join.html).
-    // Visitors can submit one, and withdraw it using the random id only they were given.
-    // Nobody can read or list applications from the site; the team reviews them in the Firebase console.
-    match /applications/{id} {
-      allow create: if validApplication(request.resource.data);
-      allow delete: if true;   // needs the unguessable doc id, which only the submitter's browser has
-      allow read, update: if false;
-    }
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function verified() { return signedIn() && request.auth.token.email_verified == true && request.auth.token.email is string; }
+    function doc(p) { return path("/databases/" + database + "/documents/" + p); }
+    function isSiteAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function memberDoc(m) { return /databases/$(database)/documents/mosques/$(m)/members/$(request.auth.uid); }
+    function isMember(m) { return signedIn() && exists(memberDoc(m)); }
+    function canEdit(m) { return isSiteAdmin() || isMember(m); }
+    function isOwner(m) { return isSiteAdmin() || (isMember(m) && get(memberDoc(m)).data.role == "owner"); }
 
     function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function optStr(d, k, max) { return !(k in d) || str(d[k], 0, max); }
+    function optList(d, k, max) { return !(k in d) || (d[k] is list && d[k].size() <= max); }
+    function optBool(d, k) { return !(k in d) || d[k] is bool; }
+    function optMap(d, k) { return !(k in d) || d[k] is map; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // ---------- Site admins (create these by hand in the console) ----------
+    match /admins/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow list, write: if false;
+    }
+
+    // ---------- Accounts ----------
+    match /users/{uid} {
+      allow read, delete: if signedIn() && me() == uid;
+      allow create, update: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(["name", "prefs", "notify", "updated"])
+        && optStr(request.resource.data, "name", 80)
+        && optMap(request.resource.data, "prefs")
+        && optMap(request.resource.data, "notify");
+    }
+
+    // ---------- Mosques ----------
+    function profileKeys() {
+      return ["name", "short", "address", "lat", "lng", "phone", "email", "website", "donateUrl", "about",
+              "values", "features", "method", "published", "managed", "iqamah", "jumuah", "updated", "updatedBy"];
+    }
+    function validMosque(d) {
+      return d.keys().hasOnly(profileKeys())
+        && str(d.name, 2, 120) && optStr(d, "short", 40) && optStr(d, "address", 200)
+        && (!("lat" in d) || (d.lat is number && d.lat >= -90 && d.lat <= 90))
+        && (!("lng" in d) || (d.lng is number && d.lng >= -180 && d.lng <= 180))
+        && optStr(d, "phone", 40) && optStr(d, "email", 200) && optStr(d, "website", 300)
+        && optStr(d, "donateUrl", 300) && optStr(d, "about", 1000) && optStr(d, "values", 120)
+        && optList(d, "features", 30) && optStr(d, "method", 20)
+        && optBool(d, "published") && optBool(d, "managed")
+        && optMap(d, "iqamah") && optList(d, "jumuah", 6);
+    }
+
+    match /mosques/{m} {
+      allow read: if true;
+      allow create, delete: if isSiteAdmin();
+      // Owners edit the profile; editors only the times.
+      allow update: if validMosque(request.resource.data) && (
+        isSiteAdmin()
+        || (isOwner(m) && changed().hasOnly(profileKeys()) && !changed().hasAny(["published", "managed"]))
+        || (isMember(m) && changed().hasOnly(["iqamah", "jumuah", "updated", "updatedBy"])));
+
+      // Team. People join by claiming an invite sent to their verified email.
+      match /members/{uid} {
+        allow read: if canEdit(m) || (signedIn() && me() == uid);
+        allow create: if (isOwner(m) && validMember(request.resource.data, uid))
+          || (verified() && me() == uid && validMember(request.resource.data, uid)
+              && request.resource.data.email == myEmail()
+              && exists(doc("mosques/" + m + "/invites/" + myEmail()))
+              && get(doc("mosques/" + m + "/invites/" + myEmail())).data.role == request.resource.data.role);
+        allow update: if isOwner(m) && validMember(request.resource.data, uid) && me() != uid;
+        allow delete: if isOwner(m) || (signedIn() && me() == uid);
+      }
+
+      match /invites/{email} {
+        allow read: if isOwner(m) || (verified() && email == myEmail());
+        allow create: if isOwner(m)
+          && request.resource.data.keys().hasOnly(["email", "role", "mosque", "mosqueName", "invitedBy", "created"])
+          && request.resource.data.email == email && str(email, 5, 200)
+          && request.resource.data.mosque == m
+          && request.resource.data.role in ["owner", "editor"];
+        allow delete: if isOwner(m) || (verified() && email == myEmail());
+        allow update: if false;
+      }
+
+      match /events/{e} {
+        allow read: if true;
+        allow create, update: if canEdit(m) && validEvent(request.resource.data, m);
+        allow delete: if canEdit(m);
+      }
+
+      match /announcements/{a} {
+        allow read: if true;
+        allow create, update: if canEdit(m) && validAnnouncement(request.resource.data, m);
+        allow delete: if canEdit(m);
+      }
+
+      // RSVPs and volunteer sign-ups. id = <event>_<yyyy-mm-dd>_<uid>, so one per person per date.
+      match /rsvps/{r} {
+        allow read: if canEdit(m) || (signedIn() && resource.data.uid == me());
+        allow create, update: if signedIn() && validRsvp(request.resource.data, m, r);
+        allow delete: if canEdit(m) || (signedIn() && resource.data.uid == me());
+      }
+    }
+
+    function validMember(d, uid) {
+      return d.keys().hasOnly(["uid", "email", "name", "role", "added"])
+        && d.uid == uid && d.role in ["owner", "editor"] && optStr(d, "email", 200) && optStr(d, "name", 80);
+    }
+
+    function validEvent(d, m) {
+      return d.keys().hasOnly(["mosque", "title", "desc", "date", "recur", "start", "end", "after", "mins", "offset",
+                                "ages", "audience", "interests", "cost", "place", "sample", "rsvp", "volunteer", "updated"])
+        && d.mosque == m && str(d.title, 1, 140) && optStr(d, "desc", 2000)
+        && (("date" in d && str(d.date, 10, 10)) || ("recur" in d && d.recur is map))
+        && optStr(d, "start", 5) && optStr(d, "end", 5)
+        && (!("after" in d) || d.after in ["fajr", "dhuhr", "asr", "maghrib", "isha"])
+        && (!("mins" in d) || (d.mins is int && d.mins > 0 && d.mins <= 720))
+        && (!("offset" in d) || (d.offset is int && d.offset >= 0 && d.offset <= 180))
+        && optList(d, "ages", 2) && (!("audience" in d) || d.audience in ["all", "sisters", "brothers", "girls"])
+        && optList(d, "interests", 12) && optStr(d, "cost", 200) && optStr(d, "place", 200)
+        && optBool(d, "sample") && optBool(d, "rsvp") && optBool(d, "volunteer");
+    }
+
+    function validAnnouncement(d, m) {
+      return d.keys().hasOnly(["mosque", "title", "body", "kind", "from", "until", "created", "by"])
+        && d.mosque == m && str(d.title, 1, 140) && optStr(d, "body", 2000)
+        && d.kind in ["news", "urgent", "janazah"]
+        && str(d.from, 10, 10) && str(d.until, 10, 10);
+    }
+
+    function validRsvp(d, m, r) {
+      return d.keys().hasOnly(["mosque", "event", "date", "uid", "name", "kind", "party", "title", "created"])
+        && d.uid == me() && d.mosque == m && r == d.event + "_" + d.date + "_" + me()
+        && str(d.date, 10, 10) && str(d.name, 1, 80) && optStr(d, "title", 140)
+        && d.kind in ["going", "volunteer"]
+        && d.party is int && d.party >= 1 && d.party <= 10
+        && exists(doc("mosques/" + m + "/events/" + d.event))
+        && (get(doc("mosques/" + m + "/events/" + d.event)).data.get("rsvp", false) == true
+            || get(doc("mosques/" + m + "/events/" + d.event)).data.get("volunteer", false) == true);
+    }
+
+    // Collection-group reads: "my mosques", "invites for my email", "my RSVPs", and public events/announcements.
+    match /{path=**}/members/{uid} { allow read: if signedIn() && resource.data.uid == me(); }
+    match /{path=**}/invites/{email} { allow read: if verified() && resource.data.email == myEmail(); }
+    match /{path=**}/rsvps/{r} { allow read: if signedIn() && resource.data.uid == me(); }
+    match /{path=**}/events/{e} { allow read: if true; }
+    match /{path=**}/announcements/{a} { allow read: if true; }
+
+    // ---------- "Add your mosque" applications (join.html) ----------
+    // Anyone can submit one; signed-in applicants can see theirs. Site admins review them.
+    match /applications/{id} {
+      allow create: if validApplication(request.resource.data);
+      allow get: if isSiteAdmin() || (signedIn() && resource.data.get("uid", "") == me());
+      allow list: if isSiteAdmin() || (signedIn() && resource.data.get("uid", "") == me());
+      allow update: if isSiteAdmin() && changed().hasOnly(["status", "mosqueId", "reviewed"]);
+      allow delete: if true;   // withdrawing needs the unguessable doc id, which only the submitter's browser has
+    }
 
     function validApplication(d) {
       return d.keys().hasOnly(["name", "address", "lat", "lng", "phone", "website", "method", "jumuah",
-                                "features", "contact", "role", "email", "notes", "status", "submitted"])
+                                "features", "contact", "role", "email", "notes", "status", "submitted", "uid"])
         && d.keys().hasAll(["name", "address", "lat", "lng", "contact", "role", "email", "status", "submitted"])
         && str(d.name, 2, 120)
         && str(d.address, 5, 200)
@@ -27,12 +180,9 @@ service cloud.firestore {
         && str(d.contact, 1, 100)
         && str(d.role, 1, 40)
         && str(d.email, 5, 200) && d.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
-        && (!("phone" in d) || str(d.phone, 0, 40))
-        && (!("website" in d) || str(d.website, 0, 300))
-        && (!("method" in d) || str(d.method, 0, 20))
-        && (!("jumuah" in d) || str(d.jumuah, 0, 100))
-        && (!("notes" in d) || str(d.notes, 0, 2000))
-        && (!("features" in d) || (d.features is list && d.features.size() <= 20))
+        && optStr(d, "phone", 40) && optStr(d, "website", 300) && optStr(d, "method", 20)
+        && optStr(d, "jumuah", 100) && optStr(d, "notes", 2000) && optList(d, "features", 20)
+        && (!("uid" in d) || (signedIn() && d.uid == me()))
         && d.status == "pending"
         && d.submitted == request.time;
     }

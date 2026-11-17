@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mosque dashboard · MasjidHub</title>
+<meta name="description" content="Keep your mosque's iqamah times, events and announcements up to date on MasjidHub.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a3622">
+<meta name="apple-mobile-web-app-title" content="MasjidHub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="color-scheme" content="light dark">
+<script src="assets/js/boot.js"></script>
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<div class="subnav"><div class="wrap"><h1>Mosque dashboard</h1><div class="right" id="pick-wrap"></div></div></div>
+<main>
+  <section class="section">
+    <div class="wrap-narrow" id="dash" aria-live="polite"><p class="muted">Loading…</p></div>
+  </section>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/content.js"></script>
+<script src="assets/js/core.js"></script>
+<script src="assets/js/db.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), e = MH.esc;
+  const params = new URLSearchParams(location.search);
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const FIVE = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+  const pname = id => (MH.PRAYERS.find(p => p.id === id) || { t: id }).t;
+  // data.js as shipped (content.js keeps a copy before it overlays live content). Used to start managing a mosque.
+  const STATIC = MH_CONTENT.base;
+
+  let fs, db, me, roles, mosques = [], current = null, tab = params.get("tab") || "announcements";
+
+  function screen(html) { $("dash").innerHTML = html; }
+  function fail(ex) { MH.toast(ex && ex.message ? MH_DB.friendly(ex).message : "Couldn't save. Check your connection and try again."); }
+  const busy = async (btn, fn) => { if (btn) btn.disabled = true; try { return await fn(); } catch (ex) { fail(ex); } finally { if (btn) btn.disabled = false; } };
+  const published = () => MH_CONTENT.refresh();   // so this browser's public pages show the change straight away
+  const slug = s => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-").slice(0, 40) || "item";
+  const rand = () => Math.random().toString(36).slice(2, 6);
+  const canOwn = m => roles.siteAdmin || (roles.mosques.find(x => x.id === m) || {}).role === "owner";
+
+  /* ---------------- Start ---------------- */
+  async function start() {
+    if (!location.protocol.startsWith("http")) return screen(`<div class="notice">${MH.icon("alert")}<span>The dashboard needs the site to be served over http(s).</span></div>`);
+    let u;
+    try { u = await MH_DB.user(); ({ fs, db } = await MH_DB.load()); }
+    catch (ex) { return screen(`<div class="notice">${MH.icon("alert")}<span>Couldn't reach MasjidHub. Check your connection and reload.</span></div>`); }
+    if (!u) return screen(`<div class="panel" style="text-align:center"><div style="color:var(--gold)">${MH.icon("shield", "ic-lg")}</div>
+      <h2>For mosque admins</h2><p class="muted">Sign in to update your mosque's iqamah times, events and announcements.</p>
+      <a class="btn" href="account.html?next=admin.html">Sign in</a>
+      <p class="small muted" style="margin:18px 0 0">Not on MasjidHub yet? <a href="join.html">Apply to add your mosque</a>.</p></div>`);
+    me = u;
+    roles = await MH_DB.roles();
+    if (!roles.siteAdmin && !roles.mosques.length) {
+      return screen(`<div class="panel"><h2 class="panel-h">${MH.icon("shield")} You're not on a mosque team yet</h2>
+        <p class="muted">${roles.invites.length ? `You have an invite waiting. <a href="account.html">Accept it on your Account page</a>.` : `When a mosque's owner invites <strong>${e(u.email || "your email")}</strong>, the invite appears on your <a href="account.html">Account page</a>.`}</p>
+        ${u.emailVerified ? "" : `<p class="small muted">First, verify your email from your Account page.</p>`}
+        <p class="small muted">Want to bring your mosque to MasjidHub? <a href="join.html">Apply here</a>.</p></div>`);
+    }
+    await loadMosques();
+    const want = params.get("m");
+    current = mosques.find(m => m.id === want) || mosques[0];
+    if (roles.siteAdmin && !want && tab === "announcements") tab = "applications";
+    draw();
+  }
+
+  async function loadMosques() {
+    if (roles.siteAdmin) {
+      const s = await fs.getDocs(fs.collection(db, "mosques"));
+      const live = s.docs.map(d => Object.assign({ id: d.id, inDb: true }, d.data()));
+      // data.js mosques not in the database yet can be started from here.
+      mosques = live.concat(STATIC.mosques.filter(m => !live.some(l => l.id === m.id)).map(m => ({ id: m.id, name: m.name, inDb: false })));
+    } else {
+      mosques = await Promise.all(roles.mosques.map(async r => {
+        const d = await fs.getDoc(fs.doc(db, "mosques", r.id));
+        return Object.assign({ id: r.id, inDb: d.exists() }, d.exists() ? d.data() : { name: r.id });
+      }));
+    }
+    mosques.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }
+
+  function draw() {
+    $("pick-wrap").innerHTML = mosques.length > 1 ? `<label class="sr-only" for="pick">Mosque</label><select id="pick" style="min-height:44px;padding:6px 12px;max-width:60vw">${mosques.map(m => `<option value="${e(m.id)}"${current && m.id === current.id ? " selected" : ""}>${e(m.name)}</option>`).join("")}</select>` : "";
+    if ($("pick")) $("pick").onchange = ev => { current = mosques.find(m => m.id === ev.target.value); if (tab === "applications") tab = "announcements"; setUrl(); draw(); };
+    const tabs = [];
+    if (roles.siteAdmin) tabs.push(["applications", "Applications"]);
+    if (current && current.inDb) {
+      tabs.push(["announcements", "Announcements"], ["events", "Events"], ["times", "Prayer times"], ["signups", "Sign-ups"]);
+      if (canOwn(current.id)) tabs.push(["info", "Mosque info"], ["team", "Team"]);
+    }
+    if (!tabs.some(t => t[0] === tab)) tab = tabs.length ? tabs[0][0] : "";
+    screen(`${current ? `<p class="eyebrow" style="margin:0 0 4px">${roles.siteAdmin ? "Site admin" : canOwn(current.id) ? "Owner" : "Editor"}</p>
+      <h2 class="title" style="margin:0 0 16px">${e(current.name)}</h2>` : ""}
+      ${tabs.length ? `<div class="dash-tabs" role="tablist">${tabs.map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === tab}">${t}</button>`).join("")}</div>` : ""}
+      <div id="pane"></div>`);
+    document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; setUrl(); draw(); });
+    if (current && !current.inDb && tab !== "applications") return drawStart();
+    ({ applications: drawApplications, announcements: drawAnnouncements, events: drawEvents, times: drawTimes, signups: drawSignups, info: drawInfo, team: drawTeam }[tab] || drawStart)();
+  }
+  function setUrl() { history.replaceState(null, "", `admin.html?m=${encodeURIComponent(current ? current.id : "")}&tab=${tab}`); }
+  const pane = html => { $("pane").innerHTML = html; };
+  const col = name => fs.collection(db, "mosques", current.id, name);
+  const ref = (name, id) => fs.doc(db, "mosques", current.id, name, id);
+
+  /* ---------------- Start managing a data.js mosque ---------------- */
+  function drawStart() {
+    if (!current || current.inDb) return pane(`<p class="muted">Pick a mosque above.</p>`);
+    const m = STATIC.mosques.find(x => x.id === current.id), evs = STATIC.events.filter(x => (x.mosque || STATIC.mosques[0].id) === m.id);
+    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("sparkle")} Start managing ${e(m.short || m.name)} here</h2>
+      <p class="muted">This copies ${e(m.short || m.name)}'s details and its ${evs.length} events into the database. From then on, what you change here is what everyone sees, and the copy in data.js is no longer used for this mosque.</p>
+      <button class="btn" id="go" type="button">Start managing</button></div>`);
+    $("go").onclick = ev => busy(ev.currentTarget, async () => {
+      const b = fs.writeBatch(db);
+      const keep = ["name", "short", "address", "lat", "lng", "phone", "email", "website", "donateUrl", "about", "values", "features"];
+      const doc = { published: true, managed: true, iqamah: {}, jumuah: [], updated: fs.serverTimestamp(), updatedBy: me.uid };
+      keep.forEach(k => { if (m[k] != null) doc[k] = m[k]; });
+      b.set(fs.doc(db, "mosques", m.id), doc);
+      evs.forEach(x => { const d = Object.assign({}, x, { mosque: m.id, updated: fs.serverTimestamp() }); delete d.id; b.set(fs.doc(db, "mosques", m.id, "events", x.id), d); });
+      await b.commit();
+      MH.toast(`${m.short || m.name} is now managed here`);
+      await loadMosques(); current = mosques.find(x => x.id === m.id); tab = "times"; setUrl(); draw(); published();
+    });
+  }
+
+  /* ---------------- Applications (site admin) ---------------- */
+  async function drawApplications() {
+    pane(`<p class="muted">Loading…</p>`);
+    const s = await fs.getDocs(fs.collection(db, "applications"));
+    const apps = s.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (b.submitted && b.submitted.seconds || 0) - (a.submitted && a.submitted.seconds || 0));
+    const pending = apps.filter(a => a.status === "pending"), done = apps.filter(a => a.status !== "pending");
+    const row = a => `<div class="list-row"><div>
+        <strong>${e(a.name)}</strong> ${a.status === "pending" ? "" : `<span class="pill ${a.status === "approved" ? "" : "gray"}">${a.status}</span>`}
+        <div class="small muted">${e(a.address)}</div>
+        <div class="small" style="margin-top:6px">${e(a.contact)} (${e(a.role)}) · <a href="mailto:${e(a.email)}">${e(a.email)}</a>${a.phone ? " · " + e(a.phone) : ""}</div>
+        ${a.website ? `<div class="small"><a href="${/^https?:\/\//.test(a.website) ? e(a.website) : "https://" + e(a.website)}" target="_blank" rel="noopener">${e(a.website)}</a></div>` : ""}
+        ${a.jumuah ? `<div class="small muted">Jumu'ah: ${e(a.jumuah)}</div>` : ""}
+        ${a.notes ? `<div class="small muted" style="white-space:pre-line">${e(a.notes)}</div>` : ""}
+        <div class="small muted">Submitted ${a.submitted ? new Date(a.submitted.seconds * 1000).toLocaleDateString() : ""}</div></div>
+      ${a.status === "pending" ? `<div class="acts"><button class="btn sm gold" type="button" data-ok="${a.id}">Approve</button><button class="btn sm danger" type="button" data-no="${a.id}">Reject</button></div>` : ""}</div>`;
+    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("mosque")} Waiting for review (${pending.length})</h2>
+        ${pending.length ? pending.map(row).join("") : `<p class="muted" style="margin:0">No applications waiting.</p>`}
+        <p class="small muted" style="margin:14px 0 0">Before approving, check the mosque is real (website, a phone call, or the contact's role). Approving puts it on the map and invites the applicant's email as its owner.</p></div>
+      ${done.length ? `<div class="panel" style="margin-top:18px"><h2 class="panel-h">Reviewed</h2>${done.slice(0, 20).map(row).join("")}</div>` : ""}`);
+    $("pane").querySelectorAll("[data-ok]").forEach(b => b.onclick = () => busy(b, () => approve(apps.find(a => a.id === b.dataset.ok))));
+    $("pane").querySelectorAll("[data-no]").forEach(b => b.onclick = () => {
+      if (!confirm("Reject this application? The applicant isn't emailed automatically; let them know yourself.")) return;
+      busy(b, async () => { await fs.updateDoc(fs.doc(db, "applications", b.dataset.no), { status: "rejected", reviewed: fs.serverTimestamp() }); drawApplications(); });
+    });
+  }
+  async function approve(a) {
+    let id = slug(a.name);
+    if ((await fs.getDoc(fs.doc(db, "mosques", id))).exists()) id += "-" + rand();
+    const email = a.email.trim().toLowerCase(), b = fs.writeBatch(db);
+    b.set(fs.doc(db, "mosques", id), { name: a.name, short: a.name.length > 28 ? a.name.slice(0, 28) + "…" : a.name, address: a.address, lat: a.lat, lng: a.lng,
+      phone: a.phone || "", website: a.website || "", method: a.method || "ISNA", features: a.features || [], about: "", published: true, managed: true,
+      iqamah: {}, jumuah: [], updated: fs.serverTimestamp(), updatedBy: me.uid });
+    b.set(fs.doc(db, "mosques", id, "invites", email), { email, role: "owner", mosque: id, mosqueName: a.name, invitedBy: me.uid, created: fs.serverTimestamp() });
+    b.update(fs.doc(db, "applications", a.id), { status: "approved", mosqueId: id, reviewed: fs.serverTimestamp() });
+    await b.commit();
+    MH.toast(`${a.name} approved`);
+    inviteMessage(a.name, email, "owner");
+    await loadMosques(); drawApplications(); published();
+  }
+  // Invites aren't emailed automatically yet, so give the admin a message to send.
+  function inviteMessage(name, email, role) {
+    const link = new URL("account.html", location.href).href;
+    const text = `Assalamu alaikum! You've been added as ${role === "owner" ? "an owner" : "an editor"} of ${name} on MasjidHub.\n\n1. Open ${link}\n2. Sign in or create an account with this email: ${email}\n3. Verify your email, then tap Accept on the invite.\n\nYou can then update iqamah times, events and announcements.`;
+    const bd = document.createElement("div");
+    bd.className = "sheet-backdrop open";
+    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="im-t"><h2 id="im-t">Let them know</h2>
+      <p class="muted">MasjidHub doesn't email invites yet. Send this to <strong>${e(email)}</strong>:</p>
+      <textarea readonly style="min-height:200px">${e(text)}</textarea>
+      <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn" type="button" id="im-copy">Copy message</button><a class="btn ghost" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent("Your MasjidHub invite")}&body=${encodeURIComponent(text)}">Open in email</a><button class="btn ghost" type="button" id="im-x">Done</button></div></div>`;
+    document.body.appendChild(bd);
+    bd.querySelector("#im-copy").onclick = () => navigator.clipboard.writeText(text).then(() => MH.toast("Copied"), () => MH.toast("Select the text and copy it"));
+    bd.querySelector("#im-x").onclick = () => bd.remove();
+    bd.onclick = ev => { if (ev.target === bd) bd.remove(); };
+  }
+
+  /* ---------------- Announcements ---------------- */
+  async function drawAnnouncements() {
+    pane(`<p class="muted">Loading…</p>`);
+    const s = await fs.getDocs(col("announcements"));
+    const list = s.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => b.from < a.from ? -1 : 1);
+    const today = MH.ymd(new Date());
+    const status = a => a.until < today ? "Ended" : a.from > today ? "Scheduled" : "Showing now";
+    pane(`<div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px"><h2 class="panel-h" style="margin:0">${MH.icon("bell")} Announcements</h2><button class="btn sm" id="new" type="button">${MH.icon("plus")} New announcement</button></div>
+      <p class="small muted">Shown on the home page and your mosque's page between the dates you choose.</p>
+      <div id="form-slot"></div>
+      ${list.length ? list.map(a => `<div class="list-row"><div><strong>${e(a.title)}</strong> <span class="pill ${a.kind === "news" ? "gray" : "gold"}">${a.kind === "janazah" ? "Janazah" : a.kind === "urgent" ? "Urgent" : "News"}</span>
+          <div class="small muted">${status(a)} · ${MH.fmtDate(MH.parseYmd(a.from), { month: "short", day: "numeric" })} to ${MH.fmtDate(MH.parseYmd(a.until), { month: "short", day: "numeric" })}</div></div>
+          <div class="acts"><button class="btn sm ghost" type="button" data-edit="${a.id}">Edit</button><button class="btn sm danger" type="button" data-del="${a.id}">Delete</button></div></div>`).join("")
+        : `<p class="muted" style="margin:0">No announcements yet.</p>`}</div>`);
+    $("new").onclick = () => annForm();
+    $("pane").querySelectorAll("[data-edit]").forEach(b => b.onclick = () => annForm(list.find(a => a.id === b.dataset.edit)));
+    $("pane").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Delete this announcement?")) busy(b, async () => { await fs.deleteDoc(ref("announcements", b.dataset.del)); drawAnnouncements(); published(); }); });
+  }
+  function annForm(a) {
+    const today = new Date(), wk = new Date(today.getTime() + 7 * 86400000);
+    a = a || { kind: "news", title: "", body: "", from: MH.ymd(today), until: MH.ymd(wk) };
+    $("form-slot").innerHTML = `<form class="panel" id="af" style="margin:12px 0;box-shadow:none" novalidate>
+      <span class="label">Type</span>
+      <div class="seg" id="af-kind" style="margin:8px 0 16px">${[["news", "News"], ["urgent", "Urgent"], ["janazah", "Janazah"]].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${a.kind === v}">${t}</button>`).join("")}</div>
+      <div class="field"><label for="af-t">Title</label><input id="af-t" type="text" maxlength="140" value="${e(a.title)}" required></div>
+      <div class="field"><label for="af-b">Details</label><textarea id="af-b" maxlength="2000">${e(a.body || "")}</textarea></div>
+      <div class="row"><div class="field"><label for="af-f">Show from</label><input id="af-f" type="date" value="${a.from}"></div><div class="field"><label for="af-u">Until</label><input id="af-u" type="date" value="${a.until}"></div></div>
+      <p class="small" id="af-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="af-x">Cancel</button></div></form>`;
+    let kind = a.kind;
+    $("af-kind").onclick = ev => { const b = ev.target.closest("[data-v]"); if (!b) return; kind = b.dataset.v; $("af-kind").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
+    $("af-x").onclick = () => { $("form-slot").innerHTML = ""; };
+    $("af-t").focus();
+    $("af").onsubmit = ev => {
+      ev.preventDefault();
+      const d = { mosque: current.id, kind, title: $("af-t").value.trim(), body: $("af-b").value.trim(), from: $("af-f").value, until: $("af-u").value, by: me.uid };
+      if (!d.title) return ($("af-err").textContent = "Please add a title.");
+      if (!d.from || !d.until || d.until < d.from) return ($("af-err").textContent = "Please choose dates, with 'Until' on or after 'Show from'.");
+      busy(ev.submitter, async () => {
+        await fs.setDoc(ref("announcements", a.id || `${d.from}-${slug(d.title)}-${rand()}`), Object.assign(d, { created: fs.serverTimestamp() }));
+        MH.toast("Saved"); drawAnnouncements(); published();
+      });
+    };
+  }
+
+  /* ---------------- Events ---------------- */
+  function schedule(x) {
+    const when = x.date ? MH.fmtDate(MH.parseYmd(x.date), { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+      : `${x.recur.every === 2 ? "Every other" : "Every"} ${x.recur.days.map(d => DAYS[d]).join(", ")} · ${x.recur.from} to ${x.recur.to}`;
+    const time = x.after ? `${x.offset != null ? x.offset : 20} min after ${pname(x.after)}, ${x.mins} min` : `${x.start}–${x.end}`;
+    return `${when} · ${time}`;
+  }
+  async function drawEvents() {
+    pane(`<p class="muted">Loading…</p>`);
+    const s = await fs.getDocs(col("events"));
+    const today = MH.ymd(new Date());
+    const list = s.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    const ended = x => (x.date || x.recur.to) < today;
+    list.sort((a, b) => ended(a) - ended(b) || (a.date || a.recur.from).localeCompare(b.date || b.recur.from));
+    pane(`<div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px"><h2 class="panel-h" style="margin:0">${MH.icon("calendar")} Events</h2><button class="btn sm" id="new" type="button">${MH.icon("plus")} New event</button></div>
+      <div id="form-slot"></div>
+      ${list.map(x => `<div class="list-row"${ended(x) ? ' style="opacity:.6"' : ""}><div><strong>${e(x.title)}</strong>${x.sample ? ' <span class="pill gray">Time not confirmed</span>' : ""}${x.rsvp ? ' <span class="pill">RSVP</span>' : ""}${x.volunteer ? ' <span class="pill gold">Volunteers</span>' : ""}${ended(x) ? ' <span class="pill gray">Ended</span>' : ""}
+          <div class="small muted">${e(schedule(x))}</div></div>
+          <div class="acts"><button class="btn sm ghost" type="button" data-edit="${e(x.id)}">Edit</button><button class="btn sm danger" type="button" data-del="${e(x.id)}">Delete</button></div></div>`).join("") || `<p class="muted" style="margin:0">No events yet.</p>`}</div>`);
+    $("new").onclick = () => eventForm();
+    $("pane").querySelectorAll("[data-edit]").forEach(b => b.onclick = () => eventForm(list.find(x => x.id === b.dataset.edit)));
+    $("pane").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Delete this event? People who signed up won't be told automatically.")) busy(b, async () => { await fs.deleteDoc(ref("events", b.dataset.del)); drawEvents(); published(); }); });
+  }
+
+  function eventForm(x) {
+    const today = MH.ymd(new Date());
+    x = x || { title: "", desc: "", place: current.short || "", cost: "Free", date: today, start: "19:00", end: "20:30", ages: [0, 120], audience: "all", interests: [] };
+    const rec = !!x.recur, aft = !!x.after, r = x.recur || { days: [], from: today, to: MH.ymd(new Date(Date.now() + 90 * 86400000)), every: 1 };
+    $("form-slot").innerHTML = `<form class="panel" id="ef" style="margin:12px 0;box-shadow:none" novalidate>
+      <div class="field"><label for="ef-t">Title</label><input id="ef-t" type="text" maxlength="140" value="${e(x.title)}"></div>
+      <div class="field"><label for="ef-d">Description</label><textarea id="ef-d" maxlength="2000">${e(x.desc || "")}</textarea></div>
+      <div class="row"><div class="field"><label for="ef-p">Place</label><input id="ef-p" type="text" maxlength="200" value="${e(x.place || "")}"></div><div class="field"><label for="ef-c">Cost or registration</label><input id="ef-c" type="text" maxlength="200" value="${e(x.cost || "")}"></div></div>
+
+      <span class="label">When</span>
+      <div class="seg" id="ef-rec" style="margin:8px 0 14px"><button type="button" data-v="0" aria-pressed="${!rec}">One day</button><button type="button" data-v="1" aria-pressed="${rec}">Repeats weekly</button></div>
+      <div id="ef-one" ${rec ? "hidden" : ""}><div class="field"><label for="ef-date">Date</label><input id="ef-date" type="date" value="${x.date || today}"></div></div>
+      <div id="ef-many" ${rec ? "" : "hidden"}>
+        <span class="label">On</span>
+        <div class="days" id="ef-days" style="margin:8px 0 14px">${DAYS.map((d, i) => `<button type="button" class="chip" data-d="${i}" aria-pressed="${r.days.includes(i)}">${d}</button>`).join("")}</div>
+        <div class="row"><div class="field"><label for="ef-from">Starting</label><input id="ef-from" type="date" value="${r.from}"></div><div class="field"><label for="ef-to">Ending</label><input id="ef-to" type="date" value="${r.to}"></div></div>
+        <label class="check"><input type="checkbox" id="ef-every"${r.every === 2 ? " checked" : ""}> <span>Every other week</span></label>
+      </div>
+
+      <span class="label">Time</span>
+      <div class="seg" id="ef-aft" style="margin:8px 0 14px"><button type="button" data-v="0" aria-pressed="${!aft}">Set times</button><button type="button" data-v="1" aria-pressed="${aft}">After a prayer</button></div>
+      <div id="ef-clock" ${aft ? "hidden" : ""} class="row"><div class="field"><label for="ef-s">Starts</label><input id="ef-s" type="time" value="${x.start || "19:00"}"></div><div class="field"><label for="ef-e">Ends</label><input id="ef-e" type="time" value="${x.end || "20:30"}"></div></div>
+      <div id="ef-prayer" ${aft ? "" : "hidden"}>
+        <div class="row"><div class="field"><label for="ef-ap">After</label><select id="ef-ap">${FIVE.map(p => `<option value="${p}"${x.after === p ? " selected" : ""}>${pname(p)}</option>`).join("")}</select></div>
+          <div class="field"><label for="ef-off">Starts this many minutes after the adhan</label><input id="ef-off" type="number" min="0" max="180" value="${x.offset != null ? x.offset : 20}"></div></div>
+        <div class="field"><label for="ef-mins">Lasts (minutes)</label><input id="ef-mins" type="number" min="5" max="720" value="${x.mins || 60}"></div>
+      </div>
+
+      <span class="label">Who it's for</span>
+      <div class="row" style="margin-top:8px"><div class="field"><label for="ef-a1">Youngest age</label><input id="ef-a1" type="number" min="0" max="120" value="${(x.ages || [0, 120])[0]}"></div><div class="field"><label for="ef-a2">Oldest age</label><input id="ef-a2" type="number" min="0" max="120" value="${(x.ages || [0, 120])[1]}"></div></div>
+      <div class="field"><label for="ef-aud">Audience</label><select id="ef-aud">${[["all", "Everyone"], ["sisters", "Sisters"], ["brothers", "Brothers"], ["girls", "Girls"]].map(([v, t]) => `<option value="${v}"${x.audience === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>
+      <span class="label">Interests</span>
+      <div class="chips" id="ef-int" style="margin:8px 0 16px">${MH_DATA.interests.map(i => `<button type="button" class="chip" data-i="${i.id}" aria-pressed="${(x.interests || []).includes(i.id)}">${e(i.t)}</button>`).join("")}</div>
+
+      <label class="check"><input type="checkbox" id="ef-rsvp"${x.rsvp ? " checked" : ""}> <span><strong>Take RSVPs.</strong> Shows an "I'm going" button; you see who's coming under Sign-ups.</span></label>
+      <label class="check"><input type="checkbox" id="ef-vol"${x.volunteer ? " checked" : ""}> <span><strong>Ask for volunteers.</strong> Shows a "Volunteer" button.</span></label>
+      <label class="check"><input type="checkbox" id="ef-sample"${x.sample ? " checked" : ""}> <span><strong>Time not confirmed yet.</strong> The event says "Confirm with the mosque".</span></label>
+      <p class="small" id="ef-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="submit">Save event</button><button class="btn ghost" type="button" id="ef-x">Cancel</button></div></form>`;
+    const seg = (id, on) => $(id).onclick = ev => { const b = ev.target.closest("[data-v]"); if (!b) return; $(id).querySelectorAll("button").forEach(z => z.setAttribute("aria-pressed", z === b)); on(b.dataset.v === "1"); };
+    seg("ef-rec", v => { $("ef-one").hidden = v; $("ef-many").hidden = !v; });
+    seg("ef-aft", v => { $("ef-clock").hidden = v; $("ef-prayer").hidden = !v; });
+    const toggles = id => $(id).onclick = ev => { const b = ev.target.closest(".chip"); if (b) b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); };
+    toggles("ef-days"); toggles("ef-int");
+    $("ef-x").onclick = () => { $("form-slot").innerHTML = ""; };
+    $("ef-t").focus();
+    $("ef").onsubmit = ev => {
+      ev.preventDefault();
+      const err = m => { $("ef-err").textContent = m; };
+      const on = id => $(id).querySelector('[aria-pressed="true"]').dataset.v === "1";
+      const d = { mosque: current.id, title: $("ef-t").value.trim(), desc: $("ef-d").value.trim(), place: $("ef-p").value.trim(), cost: $("ef-c").value.trim(),
+        ages: [+$("ef-a1").value || 0, +$("ef-a2").value || 120], audience: $("ef-aud").value,
+        interests: [...$("ef-int").querySelectorAll('[aria-pressed="true"]')].map(b => b.dataset.i),
+        rsvp: $("ef-rsvp").checked, volunteer: $("ef-vol").checked, sample: $("ef-sample").checked };
+      if (!d.title) return err("Please add a title.");
+      if (d.ages[0] > d.ages[1]) return err("The youngest age is above the oldest age.");
+      if (on("ef-rec")) {
+        const days = [...$("ef-days").querySelectorAll('[aria-pressed="true"]')].map(b => +b.dataset.d);
+        if (!days.length) return err("Pick at least one day of the week.");
+        if (!$("ef-from").value || !$("ef-to").value || $("ef-to").value < $("ef-from").value) return err("Please choose start and end dates, with the end after the start.");
+        d.recur = { days, from: $("ef-from").value, to: $("ef-to").value, every: $("ef-every").checked ? 2 : 1 };
+      } else {
+        if (!$("ef-date").value) return err("Please choose a date.");
+        d.date = $("ef-date").value;
+      }
+      if (on("ef-aft")) {
+        d.after = $("ef-ap").value; d.offset = Math.max(0, Math.min(180, Math.round(+$("ef-off").value || 0))); d.mins = Math.max(5, Math.min(720, Math.round(+$("ef-mins").value || 60)));
+      } else {
+        if (!$("ef-s").value || !$("ef-e").value || $("ef-e").value <= $("ef-s").value) return err("Please set a start and end time, with the end after the start.");
+        d.start = $("ef-s").value; d.end = $("ef-e").value;
+      }
+      busy(ev.submitter, async () => {
+        // setDoc replaces the whole event, so switching e.g. "after a prayer" back to set times clears the old fields.
+        await fs.setDoc(ref("events", x.id || `${slug(d.title)}-${rand()}`), Object.assign(d, { updated: fs.serverTimestamp() }));
+        MH.toast("Event saved"); drawEvents(); published();
+      });
+    };
+  }
+
+  /* ---------------- Prayer times (iqamah and Jumu'ah) ---------------- */
+  function drawTimes() {
+    const iq = current.iqamah || {}, ju = current.jumuah || [];
+    const t = MH.prayerTimes(new Date(), current.lat, current.lng, { method: current.method || "ISNA", asr: "standard" });
+    const mode = v => !v ? "none" : v[0] === "+" ? "after" : "fixed";
+    pane(`<form class="panel" id="tf" novalidate><h2 class="panel-h">${MH.icon("clock")} Iqamah times</h2>
+      <p class="small muted">For each prayer, set a fixed time, or a number of minutes after the adhan (it then moves with the adhan through the year). Today's adhan is shown for reference.</p>
+      ${FIVE.map(p => { const v = iq[p] || "", m = mode(v); return `<div class="setting-row" style="align-items:end;flex-wrap:wrap">
+        <div style="flex:1 1 140px"><strong>${pname(p)}</strong><div class="small muted">Adhan today ${MH.fmtTime(t[p])}</div></div>
+        <div class="field" style="margin:0;flex:1 1 170px"><label class="sr-only" for="tm-${p}">${pname(p)} iqamah type</label><select id="tm-${p}" data-p="${p}">
+          <option value="none"${m === "none" ? " selected" : ""}>Not set</option><option value="fixed"${m === "fixed" ? " selected" : ""}>Fixed time</option><option value="after"${m === "after" ? " selected" : ""}>Minutes after adhan</option></select></div>
+        <div class="field" style="margin:0;flex:1 1 130px" id="tv-wrap-${p}" ${m === "none" ? "hidden" : ""}><label class="sr-only" for="tv-${p}">${pname(p)} iqamah</label>
+          <input id="tv-${p}" type="${m === "after" ? "number" : "time"}" ${m === "after" ? 'min="0" max="90"' : ""} value="${m === "after" ? v.slice(1) : m === "fixed" ? v : ""}"></div></div>`; }).join("")}
+      <h2 class="panel-h" style="margin-top:22px">${MH.icon("mosque")} Jumu'ah</h2>
+      <p class="small muted">Khutbah start times, earliest first. Leave empty to hide.</p>
+      <div class="iq-grid">${[0, 1, 2, 3].map(i => `<div class="field" style="margin:0"><label for="ju-${i}">${["First", "Second", "Third", "Fourth"][i]} khutbah</label><input id="ju-${i}" type="time" value="${ju[i] || ""}"></div>`).join("")}</div>
+      <p class="small" id="tf-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
+      <button class="btn" type="submit">Save times</button>
+      ${current.updated ? `<p class="small muted" style="margin:12px 0 0">Last saved ${new Date(current.updated.seconds * 1000).toLocaleString()}</p>` : ""}</form>`);
+    FIVE.forEach(p => $("tm-" + p).onchange = ev => {
+      const m = ev.target.value, inp = $("tv-" + p);
+      $("tv-wrap-" + p).hidden = m === "none";
+      inp.type = m === "after" ? "number" : "time"; inp.value = m === "after" ? "10" : "";
+      if (m === "after") { inp.min = 0; inp.max = 90; } else { inp.removeAttribute("min"); inp.removeAttribute("max"); }
+    });
+    $("tf").onsubmit = ev => {
+      ev.preventDefault();
+      const iqamah = {};
+      for (const p of FIVE) {
+        const m = $("tm-" + p).value, v = $("tv-" + p).value;
+        if (m === "none") continue;
+        if (m === "after") { const n = Math.round(+v); if (!(n >= 0 && n <= 90)) return ($("tf-err").textContent = `${pname(p)}: minutes after the adhan should be 0 to 90.`); iqamah[p] = "+" + n; }
+        else { if (!/^\d\d:\d\d$/.test(v)) return ($("tf-err").textContent = `${pname(p)}: please set a time.`); iqamah[p] = v; }
+      }
+      const jumuah = [0, 1, 2, 3].map(i => $("ju-" + i).value).filter(Boolean).sort();
+      busy(ev.submitter, async () => {
+        await fs.updateDoc(fs.doc(db, "mosques", current.id), { iqamah, jumuah, updated: fs.serverTimestamp(), updatedBy: me.uid });
+        Object.assign(current, { iqamah, jumuah, updated: { seconds: Date.now() / 1000 } });
+        MH.toast("Times saved. They're live now."); drawTimes(); published();
+      });
+    };
+  }
+
+  /* ---------------- Sign-ups ---------------- */
+  async function drawSignups() {
+    pane(`<p class="muted">Loading…</p>`);
+    const today = MH.ymd(new Date());
+    const s = await fs.getDocs(fs.query(col("rsvps"), fs.where("date", ">=", today)));
+    const groups = {};
+    s.docs.map(d => d.data()).forEach(r => { const k = r.event + "_" + r.date; (groups[k] = groups[k] || { title: r.title || r.event, date: r.date, kind: r.kind, people: [] }).people.push(r); });
+    const list = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
+    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("users")} Upcoming sign-ups</h2>
+      <p class="small muted">From events where you turned on RSVPs or volunteers. Names are private to your mosque's team.</p>
+      ${list.length ? list.map(g => `<div class="list-row" style="align-items:flex-start"><div><strong>${e(g.title)}</strong>
+          <div class="small muted">${MH.fmtDate(MH.parseYmd(g.date), { weekday: "short", month: "short", day: "numeric" })} · ${g.people.reduce((n, p) => n + (p.party || 1), 0)} ${g.kind === "volunteer" ? "volunteering" : "going"}</div>
+          <div class="small" style="margin-top:6px">${g.people.map(p => e(p.name)).join(", ")}</div></div></div>`).join("")
+        : `<p class="muted" style="margin:0">No sign-ups yet. Turn on "Take RSVPs" or "Ask for volunteers" on an event to get them.</p>`}</div>`);
+  }
+
+  /* ---------------- Mosque info (owners) ---------------- */
+  function drawInfo() {
+    const m = current, f = (id, label, v, type, hint) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type || "text"}" value="${e(v || "")}">${hint ? `<span class="hint">${hint}</span>` : ""}</div>`;
+    pane(`<form class="panel" id="mf" novalidate><h2 class="panel-h">${MH.icon("mosque")} Mosque info</h2>
+      ${f("mf-name", "Full name", m.name)}${f("mf-short", "Short name", m.short, "text", "Used where space is tight, like MCGP.")}
+      ${f("mf-addr", "Address", m.address, "text", "To move the map pin, ask the MasjidHub team.")}
+      <div class="row">${f("mf-phone", "Phone", m.phone, "tel")}${f("mf-email", "Public email", m.email, "email")}</div>
+      ${f("mf-web", "Website", m.website, "url")}${f("mf-don", "Donation page", m.donateUrl, "url", "Where the Donate buttons send people: your own giving page (LaunchGood, PayPal, your website).")}
+      <div class="field"><label for="mf-about">About</label><textarea id="mf-about" maxlength="1000">${e(m.about || "")}</textarea></div>
+      ${f("mf-values", "Tagline", m.values)}
+      <div class="field"><label for="mf-feat">What you offer</label><input id="mf-feat" type="text" value="${e((m.features || []).join(", "))}"><span class="hint">Separate with commas, like: Jumu'ah, Parking, Weekend school</span></div>
+      <div class="field"><label for="mf-method">Prayer time method</label><select id="mf-method">${Object.entries(MH.METHODS).map(([k, x]) => `<option value="${k}"${(m.method || "ISNA") === k ? " selected" : ""}>${x.t}</option>`).join("")}</select></div>
+      ${roles.siteAdmin ? `<label class="check"><input type="checkbox" id="mf-pub"${m.published ? " checked" : ""}> <span><strong>Show on MasjidHub</strong> (site admins only)</span></label>` : ""}
+      <p class="small" id="mf-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
+      <button class="btn" type="submit">Save</button></form>`);
+    $("mf").onsubmit = ev => {
+      ev.preventDefault();
+      const v = id => $(id).value.trim(), url = s => !s || /^https:\/\//.test(s);
+      const d = { name: v("mf-name"), short: v("mf-short") || v("mf-name").slice(0, 28), address: v("mf-addr"), phone: v("mf-phone"), email: v("mf-email"), website: v("mf-web"), donateUrl: v("mf-don"),
+        about: v("mf-about"), values: v("mf-values"), features: v("mf-feat").split(",").map(s => s.trim()).filter(Boolean).slice(0, 30), method: $("mf-method").value,
+        updated: fs.serverTimestamp(), updatedBy: me.uid };
+      if (d.name.length < 2) return ($("mf-err").textContent = "Please add the mosque's name.");
+      if (!url(d.website) || !url(d.donateUrl)) return ($("mf-err").textContent = "Links must start with https://");
+      if ($("mf-pub")) d.published = $("mf-pub").checked;
+      busy(ev.submitter, async () => {
+        await fs.updateDoc(fs.doc(db, "mosques", current.id), d);
+        Object.assign(current, d); MH.toast("Saved"); draw(); published();
+      });
+    };
+  }
+
+  /* ---------------- Team (owners) ---------------- */
+  async function drawTeam() {
+    pane(`<p class="muted">Loading…</p>`);
+    const [ms, is] = await Promise.all([fs.getDocs(col("members")), fs.getDocs(col("invites"))]);
+    const members = ms.docs.map(d => d.data()), invites = is.docs.map(d => d.data());
+    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("users")} Team</h2>
+      <p class="small muted"><strong>Editors</strong> update announcements, events and prayer times, and see sign-ups. <strong>Owners</strong> can also change the mosque's info and its team.</p>
+      ${members.map(x => `<div class="list-row"><div><strong>${e(x.name || x.email)}</strong>${x.uid === me.uid ? " (you)" : ""}<div class="small muted">${e(x.email || "")} · ${x.role === "owner" ? "Owner" : "Editor"}</div></div>
+        ${x.uid === me.uid ? "" : `<div class="acts"><button class="btn sm ghost" type="button" data-role="${x.uid}">Make ${x.role === "owner" ? "editor" : "owner"}</button><button class="btn sm danger" type="button" data-rm="${x.uid}">Remove</button></div>`}</div>`).join("") || `<p class="muted">No team members yet.</p>`}
+      ${invites.length ? `<h3 style="margin:18px 0 4px">Invited, not joined yet</h3>${invites.map(i => `<div class="list-row"><div><strong>${e(i.email)}</strong><div class="small muted">${i.role === "owner" ? "Owner" : "Editor"}</div></div>
+        <div class="acts"><button class="btn sm ghost" type="button" data-msg="${e(i.email)}">Show message</button><button class="btn sm danger" type="button" data-cancel="${e(i.email)}">Cancel</button></div></div>`).join("")}` : ""}
+      <form id="inv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite someone</h3>
+        <div class="row"><div class="field"><label for="inv-e">Their email</label><input id="inv-e" type="email" autocomplete="off"></div>
+          <div class="field"><label for="inv-r">Role</label><select id="inv-r"><option value="editor">Editor</option><option value="owner">Owner</option></select></div></div>
+        <p class="small" id="inv-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
+        <button class="btn sm" type="submit">${MH.icon("plus")} Invite</button></form></div>`);
+    $("pane").querySelectorAll("[data-role]").forEach(b => b.onclick = () => busy(b, async () => {
+      const x = members.find(z => z.uid === b.dataset.role);
+      await fs.updateDoc(ref("members", x.uid), { role: x.role === "owner" ? "editor" : "owner" }); drawTeam();
+    }));
+    $("pane").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { if (confirm("Remove this person from the team?")) busy(b, async () => { await fs.deleteDoc(ref("members", b.dataset.rm)); drawTeam(); }); });
+    $("pane").querySelectorAll("[data-cancel]").forEach(b => b.onclick = () => busy(b, async () => { await fs.deleteDoc(ref("invites", b.dataset.cancel)); drawTeam(); }));
+    $("pane").querySelectorAll("[data-msg]").forEach(b => b.onclick = () => { const i = invites.find(z => z.email === b.dataset.msg); inviteMessage(current.name, i.email, i.role); });
+    $("inv").onsubmit = ev => {
+      ev.preventDefault();
+      const email = $("inv-e").value.trim().toLowerCase(), role = $("inv-r").value;
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return ($("inv-err").textContent = "Please check the email address.");
+      if (members.some(x => x.email === email)) return ($("inv-err").textContent = "They're already on the team.");
+      busy(ev.submitter, async () => {
+        await fs.setDoc(ref("invites", email), { email, role, mosque: current.id, mosqueName: current.name, invitedBy: me.uid, created: fs.serverTimestamp() });
+        inviteMessage(current.name, email, role); drawTeam();
+      });
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    start().catch(ex => screen(`<div class="notice danger">${MH.icon("alert")}<span>${e(MH_DB.friendly(ex).message)}</span></div>`));
+  });
+})();
+</script>
+</body>
+</html>

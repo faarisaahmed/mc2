@@ -56,6 +56,8 @@
     listeners.forEach(fn => { try { fn(prefs); } catch (e) { console.error(e); } });
   }
   function onPrefs(fn) { listeners.push(fn); }
+  // Redraw without changing settings, e.g. when content.js brings newer mosque content.
+  function redraw() { listeners.forEach(fn => { try { fn(prefs); } catch (e) { console.error(e); } }); }
   function applyDisplay() {
     const h = document.documentElement;
     h.classList.toggle("text-lg", prefs.text === "lg");
@@ -332,8 +334,8 @@
   // Expand one-off and recurring events into concrete occurrences between [from, to).
   function occurrences(from, to) {
     const out = [];
-    const mosque = MH_DATA.mosques[0];
     MH_DATA.events.forEach(ev => {
+      const mosque = MH_DATA.mosques.find(m => m.id === ev.mosque) || MH_DATA.mosques[0];
       const days = [];
       if (ev.date) days.push(parseYmd(ev.date));
       else if (ev.recur) {
@@ -452,6 +454,7 @@
     return `<div class="ev-actions">
       <button type="button" class="btn sm ghost" data-menu="cal-${k}" aria-expanded="false" aria-controls="cal-${k}">${icon("calendar")} Add to calendar</button>
       <button type="button" class="btn sm ghost" data-menu="share-${k}" aria-expanded="false" aria-controls="share-${k}">${icon("share")} Share</button>
+      ${rsvpButton(e)}
       ${extra || ""}
       <div class="pop-menu" id="cal-${k}" role="group" aria-label="Add to calendar" hidden>
         <a href="${esc(l.google)}" target="_blank" rel="noopener">${icon("globe")} Google Calendar</a>
@@ -463,6 +466,15 @@
         ${navigator.share ? `<button type="button" data-share="${k}">${icon("share")} More apps…</button>` : ""}
       </div>
     </div>`;
+  }
+  // "I'm going" / "Volunteer" for events the mosque opened for sign-ups (needs an account; see db.js).
+  // mh:rsvps holds this device's signed-in person's sign-ups, as "<event>_<date>" keys.
+  function rsvpKey(e) { return `${e.id}_${ymd(e.start)}`; }
+  function rsvpButton(e) {
+    if (!e.rsvp && !e.volunteer) return "";
+    const on = store.get("rsvps", []).includes(rsvpKey(e)), vol = !e.rsvp && e.volunteer;
+    const label = on ? (vol ? "Signed up" : "You're going") : (vol ? "Volunteer" : "I'm going");
+    return `<button type="button" class="btn sm${on ? "" : " ghost"}" data-rsvp="${e.key}" aria-pressed="${on}">${icon(on ? "check" : vol ? "hand" : "plus")} ${label}</button>`;
   }
   // One menu open at a time; Escape or a click elsewhere closes it.
   function closeMenus(except) {
@@ -476,6 +488,16 @@
   // find(key) returns the event occurrence for a card's key. Call once per container (it may re-render freely).
   function bindEventMenus(container, find) {
     container.addEventListener("click", evt => {
+      const rs = evt.target.closest("[data-rsvp]");
+      if (rs) {
+        const e = find(rs.dataset.rsvp); if (!e) return;
+        if (!store.get("account", null)) { location.href = "account.html?next=" + encodeURIComponent(location.pathname.split("/").pop() + location.search); return; }
+        if (!window.MH_DB) return toast("Open the event on the Events page to sign up.");
+        rs.disabled = true;
+        MH_DB.toggleRsvp(e).then(on => { toast(on ? (e.rsvp ? "See you there!" : "Thank you for volunteering!") : "Removed"); redraw(); },
+          err => { rs.disabled = false; toast(err && err.message ? err.message : "Couldn't save that. Check your connection."); });
+        return;
+      }
       const toggle = evt.target.closest("[data-menu]");
       if (toggle) {
         const menu = document.getElementById(toggle.dataset.menu), open = menu.hidden;
@@ -549,6 +571,8 @@
     share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     "ios-share": '<path d="M12 3.5v11M8.5 7 12 3.5 15.5 7"/><path d="M9 10H6.5v10.5h11V10H15"/>',   // the iPhone Share button
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 20.5c1.4-3.6 4.4-5.5 8-5.5s6.6 1.9 8 5.5"/>',
+    shield: '<path d="M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
     mobile: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'
   };
   const DIRECTIONAL = { arrow: 1, back: 1 }; // mirrored in right-to-left languages
@@ -704,6 +728,7 @@
         ${READY.length > 1 ? `<button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>` : ""}
         <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${icon("text")}</button>
         <button class="icon-btn" id="mh-settings" title="My settings" aria-label="Open my settings">${icon("gear")}</button>
+        <a class="icon-btn${store.get("account", null) ? " signed-in" : ""}" id="mh-account" href="account.html" title="Account" aria-label="${store.get("account", null) ? "My account" : "Sign in"}"${here === "account.html" ? ' aria-current="page"' : ""}>${icon("user")}</a>
         <button class="icon-btn menu-btn" id="mh-menu" aria-label="Open menu" aria-expanded="false" aria-controls="mh-links">${icon("menu")}</button>
       </div></div>`;
     document.body.prepend(header);
@@ -760,7 +785,7 @@
       <div class="cols">
         <div><h2>Pray</h2><a href="prayer.html">Prayer Times</a><a href="qibla.html">Qibla Finder</a><a href="calendar.html">Islamic Calendar</a></div>
         <div><h2>Connect</h2><a href="events.html">Events</a><a href="community.html">Community</a><a href="planner.html">AI Day Planner</a></div>
-        <div><h2>Mosques</h2><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a></div>
+        <div><h2>Mosques</h2><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a><a href="admin.html">For mosque admins</a></div>
         <div><h2>Give</h2><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
       </div>
       <div class="legal"><span>MasjidHub demo for the Muslim Center of Greater Princeton. MCGP details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span>Mosque data © OpenStreetMap contributors · Map tiles © Esri</span></div>
@@ -814,6 +839,36 @@
     installViews.push(draw);
     draw();
   }
+
+  /* ---------------- Notifications ----------------
+     Adhan reminders run on every page while MasjidHub is open (or installed and running in the background).
+     Settings live in the Account page: mh:notify (on/off), mh:notify-prayers (which ones), mh:notify-before (minutes). */
+  async function showNotification(title, body, tag) {
+    const opts = { body, icon: "assets/img/icon-192.png", badge: "assets/img/icon-192.png", tag: tag || "masjidhub" };
+    try {
+      // Android Chrome and installed apps only allow notifications through the service worker.
+      const reg = "serviceWorker" in navigator && await navigator.serviceWorker.getRegistration();
+      if (reg) return await reg.showNotification(title, opts);
+      new Notification(title, opts);
+    } catch (e) { toast(title); }
+  }
+  const canNotify = () => "Notification" in window && Notification.permission === "granted";
+  const REMIND_WINDOW = 5 * 60000;   // phones slow timers in the background, so allow a few minutes' delay
+  function checkReminders() {
+    if (!store.get("notify", false) || !canNotify()) return;
+    const now = new Date(), t = todayTimes(now), before = store.get("notify-before", 0);
+    const which = store.get("notify-prayers", ["fajr", "dhuhr", "asr", "maghrib", "isha"]);
+    PRAYERS.filter(p => !p.notPrayer && which.includes(p.id)).forEach(p => {
+      const at = t[p.id].getTime() - before * 60000, k = ymd(now) + p.id, diff = now - at;
+      // The last reminder is remembered, so reloading the page doesn't repeat it.
+      if (diff >= 0 && diff < REMIND_WINDOW && store.get("notify-last", "") !== k) {
+        store.set("notify-last", k);
+        showNotification(before ? `${p.t} in ${before} minutes` : `It's time for ${p.t}`,
+          `${p.t} ${before ? "begins" : "began"} at ${fmtTime(t[p.id])} in ${prefs.loc.name}.`, "masjidhub-adhan");
+      }
+    });
+  }
+  setInterval(checkReminders, 20000);
 
   let toastTimer;
   function toast(msg) {
@@ -1022,7 +1077,7 @@
     uiLocale, fmtTime, fmtTimeHtml, tzName, tzNote, fmtDate, fmtCountdown, ymd, parseYmd, esc,
     locate, searchPlace, allMosques,
     occurrences, matchScore, fitsAge, fitsAudience, ageLabel, audienceLabel, interestName, icsFor, eventLinks, eventActions, bindEventMenus, download,
-    openSettings, toast, icon, LOGO, installCard
+    openSettings, toast, icon, LOGO, installCard, redraw, rsvpKey, showNotification, canNotify, checkReminders
   };
 
   document.addEventListener("DOMContentLoaded", () => {

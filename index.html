@@ -31,6 +31,7 @@
 </section>
 
 <!-- QUICK ACTIONS -->
+<section class="section" id="home-ann" style="padding:28px 0 0" hidden><div class="wrap" id="home-ann-list"></div></section>
 <section class="section" style="padding:44px 0 52px">
   <div class="wrap">
     <h2 class="title center" style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:22px">What would you like to do?</h2>
@@ -151,7 +152,9 @@
 
 </main>
 <script src="assets/js/data.js"></script>
+<script src="assets/js/content.js"></script>
 <script src="assets/js/core.js"></script>
+<script src="assets/js/db.js"></script>
 <script>
 (function () {
   const $ = id => document.getElementById(id);
@@ -204,6 +207,14 @@
       slot(MH.fmtTime(t.maghrib), "prayer", "Maghrib, then dinner");
   }
 
+  // Announcements from mosques within about 40 km of the visitor's location.
+  function renderAnnouncements() {
+    const loc = MH.prefs.loc, near = new Set(MH_DATA.mosques.filter(m => MH.distanceKm(loc, m) < 40).map(m => m.id));
+    const list = (MH_DATA.announcements || []).filter(a => near.has(a.mosque)).slice(0, 3);
+    $("home-ann").hidden = !list.length;
+    $("home-ann-list").innerHTML = list.map(a => { const m = MH_DATA.mosques.find(x => x.id === a.mosque);
+      return `<div class="announce ${a.kind}" role="note">${MH.icon(a.kind === "news" ? "bell" : "alert")}<div><h3>${a.kind === "janazah" ? "Janazah: " : ""}${MH.esc(a.title)}</h3>${a.body ? `<p>${MH.esc(a.body)}</p>` : ""}<p class="small" style="margin-top:6px"><a href="mosque.html?id=${encodeURIComponent(m.id)}">${MH.esc(m.short || m.name)}</a></p></div></div>`; }).join("");
+  }
   let homeEvents = [];
   function renderEvents() {
     const now = new Date(), end = new Date(now.getTime() + 21 * 86400000);
@@ -232,7 +243,7 @@
     }
   }
 
-  function renderAll() { renderPrayers(); renderEvents(); renderCalendar(); tick(); }
+  function renderAll() { renderAnnouncements(); renderPrayers(); renderEvents(); renderCalendar(); tick(); }
   document.addEventListener("DOMContentLoaded", () => {
     renderStatic(); renderAll();
     MH.installCard($("install"));

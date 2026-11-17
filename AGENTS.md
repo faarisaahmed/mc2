@@ -108,7 +108,21 @@ Every page loads scripts in this order:
   PR and explain who can read and write what. Never allow public `read` or `list` on anything holding personal data.
 - Deploy rules with `firebase deploy --only firestore` (owner only, after merge). Test rule changes in the emulator
   first: `firebase emulators:start --only firestore`.
-- Collections today: `applications` (Add your mosque; anyone can create a validated one, nobody can read it from the site).
+- Roles (enforced only by `firestore.rules`; the UI just hides what you can't do):
+  visitor (no account) · member (signed in) · editor and owner (`mosques/{id}/members/{uid}`, joined by accepting an
+  invite sent to their verified email) · site admin (`admins/{uid}`, created by hand in the Firebase console).
+- Collections:
+  - `users/{uid}`: name, synced prefs and notification choices. Only that person can read or write it.
+  - `admins/{uid}`: site admins. Never writable from the site.
+  - `mosques/{id}`: public profile, `iqamah` (`{fajr: "06:15" | "+10"}`), `jumuah` (`["13:15"]`), `published`, `managed`
+    (true = events come from the database, not `data.js`). Subcollections: `members`, `invites` (doc id = lowercased
+    email), `events` (same fields as `data.js` events, plus `rsvp`/`volunteer`), `announcements`, `rsvps`
+    (doc id = `<event>_<yyyy-mm-dd>_<uid>`).
+  - `applications`: Add your mosque. Anyone creates; site admins review; signed-in applicants see their own.
+- Public pages read content through `assets/js/content.js` (Firestore REST, no SDK, cached in `mh:content`) and
+  redraw through `MH.onPrefs` listeners when it changes. `data.js` stays the fallback for mosques not yet managed.
+- Rules can't be tested in the emulator on machines without Java 11+. Test against the live project with throwaway
+  accounts that the test deletes afterwards, and never leave test data behind.
 
 ### Privacy
 - No accounts, cookies, analytics, or tracking. User data stays in `localStorage` under `mh:` keys via `MH.store`.

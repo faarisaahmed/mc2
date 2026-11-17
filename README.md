@@ -110,7 +110,10 @@ The demo is built around the **[Muslim Center of Greater Princeton (MCGP)](https
 | **AI Day Planner** | Understands schedules like "School 8 to 3, soccer at 4:30, homework after dinner, sleep at 10:30". Places every prayer in its valid window, handles Jumu'ah on Fridays, and suggests matching events. |
 | **Community** | Chat channels: General, Ask the Imam, Events & Carpools, Youth, Sisters, and Volunteers. |
 | **Mosques near you** | Live map of real mosques from OpenStreetMap, with MasjidHub mosques pinned in gold. Distance, directions, and each mosque's next prayer. |
-| **Add your mosque** | An application form that finds the address and adds the mosque to the map as "pending". |
+| **Add your mosque** | An application form that finds the address and sends it to the MasjidHub team for review. Approved mosques go on the map and get a dashboard. |
+| **Accounts** | Optional sign-in with Google or email. Your settings follow you to every device, and you can sign up for events and volunteer shifts. |
+| **Mosque dashboard** | Mosque teams update iqamah and Jumu'ah times, events, and announcements, and see who signed up. Owners manage the mosque's info and invite editors. |
+| **Announcements** | News, urgent notices, and janazah announcements on the home page and the mosque's page, between the dates the mosque picks. |
 | **Islamic calendar** | Gregorian and Hijri side by side, Islamic holidays, sunnah fasts (and the days fasting is not allowed), and prayer times for any day. |
 | **Donations** | Give once, monthly, or every Friday to a chosen cause, plus a zakat calculator using the gold or silver nisab. |
 | **Personal settings** | Location, school of thought, age, and interests, asked one simple question at a time. Change them any time in Settings. |
@@ -168,7 +171,8 @@ The team asked for a demo that needs no paid keys. Here is exactly what is real.
 | Mosque map | **Real** mosques from OpenStreetMap (free Overpass API) |
 | City search and "Find me automatically" | **Real** (browser location and OpenStreetMap Nominatim) |
 | MCGP info, services, education, contacts, dated events | **Real**, from [themuslimcenter.org](https://themuslimcenter.org) |
-| Recurring program times | Some are **placeholders**, and those event cards say "Sample time. Confirm with the mosque." Programs tied to a prayer ("after Isha") follow the real prayer time. |
+| Recurring program times | Some are **placeholders**, and those event cards say "Sample time. Confirm with the mosque." Programs tied to a prayer ("after Isha") follow the real prayer time. Once a mosque's team takes over in the dashboard, they confirm or correct these. |
+| Accounts, mosque dashboard, iqamah times, announcements, RSVPs | **Real** (Firebase Auth and Firestore). What a mosque team saves is live for everyone within seconds. |
 | AI Day Planner | **Demo engine.** A rule-based planner that runs in the browser with no API key. It really checks prayer windows, but it is not a large language model. |
 | Community chat | **Demo.** Messages stay in your browser. Sample posts are labelled. "Ask the Imam" never invents answers from a real person. |
 | Donations | **Demo.** No card details are collected and nothing is charged. Every donate screen links to MCGP's real donation page. |
@@ -246,7 +250,10 @@ after: "isha", mins: 60          // starts ~20 min after Isha, lasts 60 min; add
 ├── map.html              Mosques near you (Leaflet)
 ├── join.html             Add your mosque (sends applications to Firestore)
 ├── donate.html           Donations and zakat calculator
-├── mosque.html           MCGP profile page
+├── mosque.html           Mosque profile page (iqamah, announcements, events)
+├── account.html          Sign in, synced settings, notifications, your sign-ups
+├── admin.html            Mosque dashboard (role-based)
+├── firestore.rules       Database security rules: who can read and write what
 ├── manifest.webmanifest  App name, icons and shortcuts for installing
 ├── sw.js                 Service worker: saves the site's files so pages open offline
 ├── assets/
@@ -255,6 +262,8 @@ after: "isha", mins: 60          // starts ~20 min after Isha, lasts 60 min; add
 │   ├── js/core.js        Shared engine: settings, prayer math, Hijri, Qibla, icons, nav, setup
 │   ├── js/data.js        Mosques, events, interests, age groups   ← edit content here
 │   ├── js/planner.js     Day planner engine (schedule parser and prayer placement)
+│   ├── js/content.js     Live mosque content from the database, cached for offline
+│   ├── js/db.js          Accounts and database (loads Firebase only when needed)
 │   └── img/              Logo (icon.svg) and app icons (PNG)
 └── docs/readme/          Images used in this README
 ```
@@ -283,12 +292,12 @@ Every page is plain HTML that loads `data.js` and `core.js`, then runs its own s
 
 ## Privacy
 
-No accounts, cookies, or analytics. Settings, planner drafts, and chat messages are stored only in your browser's `localStorage`. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features. The one exception is **Add your mosque**: submitting it sends the application, including your name and email, to the MasjidHub team's database (Google Firebase). Nobody can read applications from the site; only the team sees them, to verify the mosque. To work offline, the app saves the site's own files (pages, styles, scripts, fonts) on your device; it never saves your location searches or map tiles.
+No analytics, ads, or tracking, and an account is optional. Without one, settings, planner drafts, and chat messages are stored only in your browser's `localStorage`. If you create an account, your name, email, synced settings, and event sign-ups are stored in MasjidHub's database (Google Firebase); only you can read your profile, and only the mosque's team sees who signed up for its events. You can delete your account and this data from the Account page. Network requests go only to map services (Esri tiles, OpenStreetMap Overpass and Nominatim), and only when you use those features. The one exception is **Add your mosque**: submitting it sends the application, including your name and email, to the MasjidHub team's database (Google Firebase). Nobody can read applications from the site; only the team sees them, to verify the mosque. To work offline, the app saves the site's own files (pages, styles, scripts, fonts) on your device; it never saves your location searches or map tiles.
 
 ## Roadmap
 
 1. **Real AI planner.** Send the schedule, prayer windows, and candidate events to a language model through a small server that holds the API key, keeping the current engine as the offline fallback.
-2. **Mosque dashboard.** Approved mosques sign in to post events, set iqamah and Jumu'ah times, and manage causes.
+2. **Mosque dashboard.** Done: iqamah and Jumu'ah times, events, announcements, sign-ups, and team roles. Next: emailed invites, and push notifications that arrive with the app closed.
 3. **Real chat.** A moderated backend with sign-in, reporting, and imam-verified answers.
 4. **Real payments.** Connect each mosque's own provider (Stripe, PayPal, LaunchGood).
 5. **Installable app.** Done: installable, with offline prayer times. Next: adhan reminders that work with the app closed, then Play Store and App Store versions.
