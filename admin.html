@@ -474,7 +474,7 @@
       <form id="ainv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite a site admin</h3>
         <div class="field"><label for="ainv-e">Their email</label><input id="ainv-e" type="email" autocomplete="off"></div>
         <fieldset style="border:0;padding:0;margin:0 0 6px"><legend class="small" style="font-weight:600;margin-bottom:4px">What they can do</legend>${boxes("new", { mosques: true, applications: true })}</fieldset>
-        <p class="small muted">We email them a sign-in link, even if they don't have an account yet. They then see the invite on their Account page and can accept or decline it. You can change these later.</p>
+        <p class="small muted">We email them an invite with a sign-in link, even if they don't have an account yet${MH_DB.SERVER_EMAILS ? ` (<button class="link-btn" type="button" id="a-preview" style="min-height:0;font-size:inherit">email me a preview</button>)` : ""}. They then see the invite on their Account page and can accept or decline it. You can change these later.</p>
         <p class="small" id="ainv-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
         <button class="btn sm" type="submit">${MH.icon("plus")} Invite</button></form></div>`);
     const permsOf = (root, attr) => Object.fromEntries(PERMS.map(([k]) => [k, root.querySelector(`[data-${attr}="${k}"]`).checked]));
@@ -492,6 +492,13 @@
     $("pane").querySelectorAll("[data-aresend]").forEach(b => b.onclick = () => busy(b, async () => {
       MH.toast(await resend(fs.doc(db, "adminInvites", b.dataset.aresend), b.dataset.aresend) ? "Invite email sent again" : "Couldn't send it. Use Show message instead.");
     }));
+    // Preview: a short-lived invite to the top admin's own address makes the server send the real email, then it's removed.
+    if ($("a-preview")) $("a-preview").onclick = ev => busy(ev.currentTarget, async () => {
+      const mine = me.email.toLowerCase(), r = fs.doc(db, "adminInvites", mine);
+      await fs.setDoc(r, { email: mine, perms: { mosques: true, applications: true }, invitedBy: me.uid, created: fs.serverTimestamp() });
+      setTimeout(() => fs.deleteDoc(r).catch(() => {}), 4000);
+      MH.toast(`Preview on its way to ${mine}`);
+    });
     if ($("a-all")) $("a-all").onclick = ev => {
       if (!confirm(`Email all ${invites.length} people their invite again?`)) return;
       busy(ev.currentTarget, async () => {
