@@ -63,7 +63,7 @@ Every page loads scripts in this order:
 
 ### Stack
 - Do not add a framework, build tool, `package.json`, or transpiled code without the owner agreeing first.
-  The one exception is `functions/` (server code for Firebase Cloud Functions, see `functions/README.md`); the website itself stays dependency-free.
+  The one exception is `server/` (server code for Firebase Cloud Functions, see `server/README.md`); the website itself stays dependency-free.
 - Do not add new third-party libraries or CDNs without asking. Approved today: Leaflet 1.9.4 on `map.html`, and the
   Firebase JS SDK (13.1.0, from www.gstatic.com), loaded only through `assets/js/db.js`.
 - Write modern vanilla JS that runs directly in current browsers. No TypeScript, no JSX.
@@ -129,8 +129,9 @@ Every page loads scripts in this order:
     rejected. Anyone creates; site admins with `perms.applications` review and may edit details first; signed-in applicants see their own.
 - Public pages read content through `assets/js/content.js` (Firestore REST, no SDK, cached in `mh:content`) and
   redraw through `MH.onPrefs` listeners when it changes. `data.js` stays the fallback for mosques not yet managed.
-- Server code lives in `functions/` (Cloud Functions, Node 22). It is written but not deployed until the project is on the
-  Blaze plan; `functions/README.md` has the steps. It sends branded invite emails. Functions bypass `firestore.rules`, so
+- Server code lives in `server/` (Cloud Functions, Node 22; not named `functions/`, because Cloudflare Pages would
+  try to run a folder with that name). It is written but not deployed until the project is on the
+  Blaze plan; `server/README.md` has the steps. It sends branded invite emails. Functions bypass `firestore.rules`, so
   changes there need the same care as rule changes.
 - Rules can't be tested in the emulator on machines without Java 11+. Test against the live project with throwaway
   accounts that the test deletes afterwards, and never leave test data behind.

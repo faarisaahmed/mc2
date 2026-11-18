@@ -314,7 +314,7 @@
   const steps = email => `1. Open the "Sign in to MasjidHub" email we sent to ${email} and tap the link. That signs you in; no password needed.\n   (No email? Open ${new URL("account.html", location.href).href} and sign in or create an account with ${email}.)\n2. Tap Accept on the invite.`;
   // Emails the invitee a one-tap sign-in link (Firebase's "Sign in to MasjidHub" email). Works whether or not they
   // have an account yet. Returns false if it couldn't be sent, so the admin knows to send the message themselves.
-  // With server emails on (functions/), the invite email goes out by itself when the invite is saved.
+  // With server emails on (server/), the invite email goes out by itself when the invite is saved.
   // Resend: with server emails, touching the invite's "created" time makes the server email it again.
   const resend = (docRef, email) => MH_DB.SERVER_EMAILS
     ? fs.setDoc(docRef, { created: fs.serverTimestamp() }, { merge: true }).then(() => true, () => false)

@@ -31,7 +31,7 @@ using an app password; the address and password are stored as Firebase secrets, 
    ```
 4. **Deploy:**
    ```bash
-   cd functions && npm install && cd ..
+   cd server && npm install && cd ..
    firebase deploy --only functions
    ```
 5. **Switch the site over:** set `SERVER_EMAILS = true` in `assets/js/db.js`, bump `VERSION` in `sw.js`, commit and push.

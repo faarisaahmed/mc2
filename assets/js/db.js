@@ -76,8 +76,8 @@
   // signs them in (creating the account) with their email already verified. Needs "Email link (passwordless
   // sign-in)" turned on under Email/Password in the Firebase console, and works only from the live site
   // (the return address must be on the authorized domains list).
-  // true once the Cloud Functions in functions/ are deployed (Blaze plan): they send a branded invite email for every
-  // new invite, so the site no longer sends Firebase's plain sign-in email itself. See functions/README.md.
+  // true once the Cloud Functions in server/ are deployed (Blaze plan): they send a branded invite email for every
+  // new invite, so the site no longer sends Firebase's plain sign-in email itself. See server/README.md.
   const SERVER_EMAILS = true;
   const sendInviteLink = wrap(async email => {
     const { au, auth } = await load();
