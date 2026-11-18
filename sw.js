@@ -6,7 +6,7 @@
    - Fonts and Leaflet from their CDNs: saved copy first, refreshed in the background.
    - Everything else (map tiles, Overpass, Nominatim) is never touched or stored.
    Bump VERSION when the list of files below changes. */
-const VERSION = "v20";
+const VERSION = "v21";
 const CACHE = `masjidhub-${VERSION}`;
 
 const SHELL = [
@@ -21,8 +21,20 @@ const SHELL = [
 const CDN_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdnjs.cloudflare.com"];
 const REFRESH_EVERY = 10 * 60 * 1000;   // at most one background refresh of SHELL per 10 minutes
 
+// Cloudflare Pages answers /page.html with a redirect to /page. A page load can't be answered with a redirected
+// response (the browser shows "This site can't be reached"), so keep a plain copy of where the redirect ended up.
+async function unwrap(res) {
+  if (!res || !res.redirected) return res;
+  return new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+const fetchPlain = (url, opts) => fetch(url, opts).then(unwrap);
+
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(async u => {
+    const res = await fetchPlain(u);
+    if (!res.ok) throw new Error("couldn't save " + u);
+    await c.put(u, res);
+  }))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", event => {
@@ -39,7 +51,7 @@ async function refreshShell() {
   if (Date.now() - lastRefresh < REFRESH_EVERY) return;
   lastRefresh = Date.now();
   try {
-    const res = await Promise.all(SHELL.map(u => fetch(u, { cache: "no-cache" })));
+    const res = await Promise.all(SHELL.map(u => fetchPlain(u, { cache: "no-cache" })));
     if (!res.every(r => r.ok)) return;
     const cache = await caches.open(CACHE);
     await Promise.all(SHELL.map((u, i) => cache.put(u, res[i])));
@@ -53,13 +65,14 @@ async function siteFile(event) {
   if (nav) event.waitUntil(refreshShell());
   // Pages are opened with ?ev=… or ?add=…; any saved copy of the same page will do.
   const saved = await cache.match(request, { ignoreSearch: nav });
-  if (saved) return saved;
+  if (saved) return unwrap(saved);   // copies saved by older versions may still be redirects
   try {
-    const res = await fetch(request);
+    // A page load's own request won't follow redirects, so fetch its address instead.
+    const res = await fetchPlain(nav ? request.url : request);
     if (res.ok && !nav) cache.put(request, res.clone());
     return res;
   } catch (err) {
-    if (nav) return (await cache.match("index.html")) || Response.error();
+    if (nav) return (await unwrap(await cache.match("index.html"))) || Response.error();
     throw err;
   }
 }
