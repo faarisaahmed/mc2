@@ -76,12 +76,14 @@
     const { au, auth } = await load();
     const cred = await au.createUserWithEmailAndPassword(auth, email, password);
     await au.updateProfile(cred.user, { displayName: name });
-    await au.sendEmailVerification(cred.user);
+    await au.sendEmailVerification(cred.user, backHere());
     remember(cred.user);
     await afterSignIn();
   });
-  const resendVerification = wrap(async () => { const { au, auth } = await load(); await au.sendEmailVerification(auth.currentUser); });
-  const resetPassword = wrap(async email => { const { au, auth } = await load(); await au.sendPasswordResetEmail(auth, email); });
+  // After using a link in our emails, Firebase's page offers a "Continue" button back to the Account page.
+  const backHere = () => ({ url: new URL("account.html", location.href).href });
+  const resendVerification = wrap(async () => { const { au, auth } = await load(); await au.sendEmailVerification(auth.currentUser, backHere()); });
+  const resetPassword = wrap(async email => { const { au, auth } = await load(); await au.sendPasswordResetEmail(auth, email, backHere()); });
   // Links in Firebase's emails (verify, reset password, undo an email change) open account.html?mode=...&oobCode=...
   // once "Customize action URL" in the Firebase console points there. These finish them on our own page.
   const applyEmailCode = wrap(async code => { const { au, auth } = await load(); await au.applyActionCode(auth, code); });
