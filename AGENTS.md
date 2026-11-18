@@ -110,15 +110,19 @@ Every page loads scripts in this order:
   first: `firebase emulators:start --only firestore`.
 - Roles (enforced only by `firestore.rules`; the UI just hides what you can't do):
   visitor (no account) · member (signed in) · editor and owner (`mosques/{id}/members/{uid}`, joined by accepting an
-  invite sent to their verified email) · site admin (`admins/{uid}`, created by hand in the Firebase console).
+  invite sent to their verified email) · site admin (`admins/{uid}` with `perms.mosques` / `perms.applications`, joined by
+  accepting an `adminInvites/{email}`) · top admin (one account, matched in `firestore.rules` by the SHA-256 of its email so
+  the address isn't in the repo; only they invite, change and remove site admins in the dashboard's "Site admins" tab).
 - Collections:
   - `users/{uid}`: name, synced prefs and notification choices. Only that person can read or write it.
-  - `admins/{uid}`: site admins. Never writable from the site.
+  - `admins/{uid}`: site admins: email, name, `perms`. Created only by accepting an invite with exactly its perms; only the
+    top admin lists, changes or removes them.
+  - `adminInvites/{email}`: pending site-admin invites (doc id = lowercased email). Top admin writes; the invitee reads or declines.
   - `mosques/{id}`: public profile, `iqamah` (`{fajr: "06:15" | "+10"}`), `jumuah` (`["13:15"]`), `published`, `managed`
     (true = events come from the database, not `data.js`). Subcollections: `members`, `invites` (doc id = lowercased
     email), `events` (same fields as `data.js` events, plus `rsvp`/`volunteer`), `announcements`, `rsvps`
     (doc id = `<event>_<yyyy-mm-dd>_<uid>`).
-  - `applications`: Add your mosque. Anyone creates; site admins review; signed-in applicants see their own.
+  - `applications`: Add your mosque. Anyone creates; site admins with `perms.applications` review; signed-in applicants see their own.
 - Public pages read content through `assets/js/content.js` (Firestore REST, no SDK, cached in `mh:content`) and
   redraw through `MH.onPrefs` listeners when it changes. `data.js` stays the fallback for mosques not yet managed.
 - Rules can't be tested in the emulator on machines without Java 11+. Test against the live project with throwaway

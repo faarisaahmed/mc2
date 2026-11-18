@@ -102,6 +102,7 @@
     const mine = await fs.getDocs(fs.query(fs.collectionGroup(db, "rsvps"), fs.where("uid", "==", u.uid)));
     await Promise.all(mine.docs.map(d => fs.deleteDoc(d.ref)));
     await fs.deleteDoc(fs.doc(db, "users", u.uid));
+    await fs.deleteDoc(fs.doc(db, "admins", u.uid));   // allowed (and harmless) even if they weren't an admin
     try { await au.deleteUser(u); }
     catch (e) { if (e.code === "auth/requires-recent-login") throw new Error("For your safety, please sign out, sign in again, then delete your account."); throw e; }
   });
@@ -172,19 +173,33 @@
   });
 
   /* ---------- Roles ---------- */
-  // { siteAdmin, mosques: [{ id, role }], invites: [{ mosque, mosqueName, role, email }] }
+  // sha256 of the top admin's email; must match isTop() in firestore.rules. Only decides what the UI shows:
+  // the rules are what actually let the top admin in.
+  const TOP = "6999570343bf5ae6c1bd50b98aa56ab6ad563b513d3a13ebd88e8849fcaea5fc";
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, "0")).join("");
+  }
+  const NO_ROLES = { top: false, siteAdmin: false, perms: { mosques: false, applications: false }, mosques: [], invites: [], adminInvite: null };
+  // { top, siteAdmin, perms: { mosques, applications }, mosques: [{ id, role }],
+  //   invites: [{ mosque, mosqueName, role, email }], adminInvite: { email, perms } | null }
   async function roles() {
     const { fs, db, auth } = await load();
     await firstUser; const u = auth.currentUser;
-    if (!u) return { siteAdmin: false, mosques: [], invites: [] };
-    const [admin, mem, inv] = await Promise.all([
-      fs.getDoc(fs.doc(db, "admins", u.uid)).then(d => d.exists(), () => false),
+    if (!u) return NO_ROLES;
+    const email = (u.email || "").toLowerCase(), verified = u.emailVerified && !!email;
+    const [top, admin, mem, inv, adminInvite] = await Promise.all([
+      verified ? sha256(email).then(h => h === TOP) : false,
+      fs.getDoc(fs.doc(db, "admins", u.uid)).then(d => d.exists() ? d.data() : null, () => null),
       fs.getDocs(fs.query(fs.collectionGroup(db, "members"), fs.where("uid", "==", u.uid))).then(s => s.docs.map(d => ({ id: d.ref.parent.parent.id, role: d.data().role })), () => []),
-      u.emailVerified && u.email
-        ? fs.getDocs(fs.query(fs.collectionGroup(db, "invites"), fs.where("email", "==", u.email.toLowerCase()))).then(s => s.docs.map(d => d.data()), () => [])
-        : Promise.resolve([])
+      verified
+        ? fs.getDocs(fs.query(fs.collectionGroup(db, "invites"), fs.where("email", "==", email))).then(s => s.docs.map(d => d.data()), () => [])
+        : Promise.resolve([]),
+      verified ? fs.getDoc(fs.doc(db, "adminInvites", email)).then(d => d.exists() ? d.data() : null, () => null) : null
     ]);
-    return { siteAdmin: admin, mosques: mem, invites: inv.filter(i => !mem.some(m => m.id === i.mosque)) };
+    const p = top ? { mosques: true, applications: true } : Object.assign({ mosques: false, applications: false }, admin && admin.perms);
+    return { top, siteAdmin: top || !!admin, perms: p, mosques: mem, invites: inv.filter(i => !mem.some(m => m.id === i.mosque)),
+      adminInvite: top || admin ? null : adminInvite };
   }
   // Joins a mosque's team from an invite sent to this person's verified email.
   const acceptInvite = wrap(async inv => {
@@ -192,6 +207,21 @@
     const u = auth.currentUser, email = u.email.toLowerCase();
     await fs.setDoc(fs.doc(db, "mosques", inv.mosque, "members", u.uid), { uid: u.uid, email, name: u.displayName || "", role: inv.role, added: fs.serverTimestamp() });
     await fs.deleteDoc(fs.doc(db, "mosques", inv.mosque, "invites", email));
+  });
+  const declineInvite = wrap(async inv => {
+    const { fs, db, auth } = await load();
+    await fs.deleteDoc(fs.doc(db, "mosques", inv.mosque, "invites", auth.currentUser.email.toLowerCase()));
+  });
+  // Becomes a site admin from the top admin's invite, with exactly the permissions it offered.
+  const acceptAdminInvite = wrap(async inv => {
+    const { fs, db, auth } = await load();
+    const u = auth.currentUser, email = u.email.toLowerCase();
+    await fs.setDoc(fs.doc(db, "admins", u.uid), { uid: u.uid, email, name: u.displayName || "", perms: inv.perms, added: fs.serverTimestamp() });
+    await fs.deleteDoc(fs.doc(db, "adminInvites", email));
+  });
+  const declineAdminInvite = wrap(async () => {
+    const { fs, db, auth } = await load();
+    await fs.deleteDoc(fs.doc(db, "adminInvites", auth.currentUser.email.toLowerCase()));
   });
 
   /* ---------- "Add your mosque" ---------- */
@@ -210,7 +240,7 @@
 
   window.MH_DB = {
     load, user, friendly, signInGoogle, signInEmail, createAccount, resendVerification, resetPassword, reloadUser,
-    signOut, setName, deleteAccount, pushPrefs, refreshRsvps, toggleRsvp, roles, acceptInvite, syncNow: afterSignIn,
+    signOut, setName, deleteAccount, pushPrefs, refreshRsvps, toggleRsvp, roles, acceptInvite, declineInvite, acceptAdminInvite, declineAdminInvite, syncNow: afterSignIn,
     addApplication, withdrawApplication, SYNCED
   };
 

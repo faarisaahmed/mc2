@@ -123,7 +123,7 @@
     if (!u) return drawWho(null);
     drawWho(u);
     const [r, rsvps, apps] = await Promise.all([
-      MH_DB.roles().catch(() => ({ siteAdmin: false, mosques: [], invites: [] })),
+      MH_DB.roles().catch(() => ({ top: false, siteAdmin: false, perms: {}, mosques: [], invites: [], adminInvite: null })),
       MH_DB.refreshRsvps().catch(() => []),
       myApplications(u).catch(() => [])
     ]);
@@ -160,18 +160,26 @@
   }
 
   function mosqueName(id) { const m = MH_DATA.mosques.find(x => x.id === id); return m ? m.name : id; }
+  const permText = p => [p.mosques && "manage every mosque", p.applications && "review mosque applications"].filter(Boolean).join(" and ") || "no permissions yet";
   function drawRoles(u, r) {
-    if (!r.siteAdmin && !r.mosques.length && !r.invites.length) { $("roles").innerHTML = ""; return; }
-    $("roles").innerHTML = `<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Mosque admin</h2>
+    if (!r.siteAdmin && !r.mosques.length && !r.invites.length && !r.adminInvite) { $("roles").innerHTML = ""; return; }
+    const ai = r.adminInvite;
+    $("roles").innerHTML = `<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Admin</h2>
+      ${ai ? `<div class="setting-row"><div><strong>You're invited to be a MasjidHub site admin</strong><div class="small muted">You'd be able to ${permText(ai.perms || {})}.</div></div>
+        <div class="acts"><button class="btn sm gold" type="button" id="ai-yes">Accept</button><button class="btn sm ghost" type="button" id="ai-no">Decline</button></div></div>` : ""}
       ${r.invites.map(i => `<div class="setting-row"><div><strong>You're invited to help run ${e(i.mosqueName || mosqueName(i.mosque))}</strong><div class="small muted">As ${i.role === "owner" ? "an owner" : "an editor"}</div></div>
-        <button class="btn sm gold" type="button" data-accept="${e(i.mosque)}">Accept</button></div>`).join("")}
-      ${r.siteAdmin ? `<div class="setting-row"><div><strong>Site admin</strong><div class="small muted">Review mosque applications and manage every mosque.</div></div><a class="btn sm" href="admin.html">Open dashboard</a></div>` : ""}
+        <div class="acts"><button class="btn sm gold" type="button" data-accept="${e(i.mosque)}">Accept</button><button class="btn sm ghost" type="button" data-decline="${e(i.mosque)}">Decline</button></div></div>`).join("")}
+      ${r.top ? `<div class="setting-row"><div><strong>Top admin</strong><div class="small muted">Everything, including choosing the other site admins.</div></div><a class="btn sm" href="admin.html">Open dashboard</a></div>`
+        : r.siteAdmin ? `<div class="setting-row"><div><strong>Site admin</strong><div class="small muted">You can ${permText(r.perms)}.</div></div><a class="btn sm" href="admin.html">Open dashboard</a></div>` : ""}
       ${r.mosques.map(m => `<div class="setting-row"><div><strong>${e(mosqueName(m.id))}</strong><div class="small muted">${m.role === "owner" ? "Owner" : "Editor"}</div></div><a class="btn sm" href="admin.html?m=${encodeURIComponent(m.id)}">Open dashboard</a></div>`).join("")}
     </div>`;
-    $("roles").querySelectorAll("[data-accept]").forEach(b => b.onclick = () => {
-      b.disabled = true;
-      MH_DB.acceptInvite(r.invites.find(i => i.mosque === b.dataset.accept)).then(() => { MH.toast("Welcome to the team!"); drawSignedIn(); }, ex => { b.disabled = false; MH.toast(ex.message); });
-    });
+    const act = (b, job, ok) => { b.disabled = true; job.then(() => { MH.toast(ok); drawSignedIn(); }, ex => { b.disabled = false; MH.toast(ex.message); }); };
+    if (ai) {
+      $("ai-yes").onclick = ev => act(ev.currentTarget, MH_DB.acceptAdminInvite(ai), "You're now a site admin");
+      $("ai-no").onclick = ev => { if (confirm("Decline the site admin invite?")) act(ev.currentTarget, MH_DB.declineAdminInvite(), "Invite declined"); };
+    }
+    $("roles").querySelectorAll("[data-accept]").forEach(b => b.onclick = () => act(b, MH_DB.acceptInvite(r.invites.find(i => i.mosque === b.dataset.accept)), "Welcome to the team!"));
+    $("roles").querySelectorAll("[data-decline]").forEach(b => b.onclick = () => { if (confirm("Decline this invite?")) act(b, MH_DB.declineInvite(r.invites.find(i => i.mosque === b.dataset.decline)), "Invite declined"); });
   }
 
   function drawRsvps(list) {

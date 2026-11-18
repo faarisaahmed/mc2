@@ -8,7 +8,11 @@ rules_version = '2';
 //   member       signed in: own profile and settings, RSVPs and volunteer sign-ups
 //   editor       mosques/{m}/members/{uid} with role "editor": events, announcements, iqamah times, sees RSVPs
 //   owner        role "owner": everything an editor can, plus the mosque's profile and its team
-//   site admin   admins/{uid} exists (added by hand in the Firebase console): applications and every mosque
+//   site admin   admins/{uid}, joined by accepting an adminInvites/{email} from the top admin. perms decide what they do:
+//                  perms.mosques       edit every mosque, add and publish mosques
+//                  perms.applications  review "Add your mosque" applications (approving also needs perms.mosques)
+//   top admin    the one account whose verified email hashes to TOP below. Everything, plus inviting, changing and
+//                removing site admins. The email is stored as a SHA-256 hash so it isn't published in this repo.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -17,11 +21,15 @@ service cloud.firestore {
     function myEmail() { return request.auth.token.email.lower(); }
     function verified() { return signedIn() && request.auth.token.email_verified == true && request.auth.token.email is string; }
     function doc(p) { return path("/databases/" + database + "/documents/" + p); }
-    function isSiteAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    // sha256 of the top admin's lowercased email. To hand over: printf %s "new@email" | shasum -a 256
+    function isTop() { return verified() && hashing.sha256(myEmail()).toHexString().lower() == "6999570343bf5ae6c1bd50b98aa56ab6ad563b513d3a13ebd88e8849fcaea5fc"; }
+    function adminDoc() { return /databases/$(database)/documents/admins/$(request.auth.uid); }
+    function can(p) { return isTop() || (signedIn() && exists(adminDoc()) && get(adminDoc()).data.perms.get(p, false) == true); }
+    function validPerms(x) { return x is map && x.keys().hasOnly(["mosques", "applications"]) && x.get("mosques", false) is bool && x.get("applications", false) is bool; }
     function memberDoc(m) { return /databases/$(database)/documents/mosques/$(m)/members/$(request.auth.uid); }
     function isMember(m) { return signedIn() && exists(memberDoc(m)); }
-    function canEdit(m) { return isSiteAdmin() || isMember(m); }
-    function isOwner(m) { return isSiteAdmin() || (isMember(m) && get(memberDoc(m)).data.role == "owner"); }
+    function canEdit(m) { return can("mosques") || isMember(m); }
+    function isOwner(m) { return can("mosques") || (isMember(m) && get(memberDoc(m)).data.role == "owner"); }
 
     function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
     function optStr(d, k, max) { return !(k in d) || str(d[k], 0, max); }
@@ -30,10 +38,31 @@ service cloud.firestore {
     function optMap(d, k) { return !(k in d) || d[k] is map; }
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
-    // ---------- Site admins (create these by hand in the console) ----------
+    // ---------- Site admins ----------
+    // The top admin invites by email; the person accepts by creating their own admins doc with exactly the invited perms.
     match /admins/{uid} {
-      allow get: if signedIn() && me() == uid;
-      allow list, write: if false;
+      allow get: if signedIn() && (me() == uid || isTop());
+      allow list: if isTop();
+      allow create: if verified() && me() == uid && validAdmin(request.resource.data, uid)
+        && request.resource.data.email == myEmail()
+        && exists(doc("adminInvites/" + myEmail()))
+        && get(doc("adminInvites/" + myEmail())).data.perms == request.resource.data.perms;
+      allow update: if isTop() && validAdmin(request.resource.data, uid) && changed().hasOnly(["perms", "updated"]);
+      allow delete: if isTop() || (signedIn() && me() == uid);
+    }
+    function validAdmin(d, uid) {
+      return d.keys().hasOnly(["uid", "email", "name", "perms", "added", "updated"])
+        && d.uid == uid && str(d.email, 5, 200) && optStr(d, "name", 80) && validPerms(d.perms);
+    }
+
+    match /adminInvites/{email} {
+      allow get: if isTop() || (verified() && email == myEmail());
+      allow list: if isTop();
+      allow create, update: if isTop()
+        && request.resource.data.keys().hasOnly(["email", "perms", "invitedBy", "created"])
+        && request.resource.data.email == email && str(email, 5, 200) && email == email.lower()
+        && validPerms(request.resource.data.perms);
+      allow delete: if isTop() || (verified() && email == myEmail());
     }
 
     // ---------- Accounts ----------
@@ -65,10 +94,10 @@ service cloud.firestore {
 
     match /mosques/{m} {
       allow read: if true;
-      allow create, delete: if isSiteAdmin();
+      allow create, delete: if can("mosques");
       // Owners edit the profile; editors only the times.
       allow update: if validMosque(request.resource.data) && (
-        isSiteAdmin()
+        can("mosques")
         || (isOwner(m) && changed().hasOnly(profileKeys()) && !changed().hasAny(["published", "managed"]))
         || (isMember(m) && changed().hasOnly(["iqamah", "jumuah", "updated", "updatedBy"])));
 
@@ -160,12 +189,12 @@ service cloud.firestore {
     match /{path=**}/announcements/{a} { allow read: if true; }
 
     // ---------- "Add your mosque" applications (join.html) ----------
-    // Anyone can submit one; signed-in applicants can see theirs. Site admins review them.
+    // Anyone can submit one; signed-in applicants can see theirs. Admins with perms.applications review them.
     match /applications/{id} {
       allow create: if validApplication(request.resource.data);
-      allow get: if isSiteAdmin() || (signedIn() && resource.data.get("uid", "") == me());
-      allow list: if isSiteAdmin() || (signedIn() && resource.data.get("uid", "") == me());
-      allow update: if isSiteAdmin() && changed().hasOnly(["status", "mosqueId", "reviewed"]);
+      allow get: if can("applications") || (signedIn() && resource.data.get("uid", "") == me());
+      allow list: if can("applications") || (signedIn() && resource.data.get("uid", "") == me());
+      allow update: if can("applications") && changed().hasOnly(["status", "mosqueId", "reviewed"]);
       allow delete: if true;   // withdrawing needs the unguessable doc id, which only the submitter's browser has
     }
 
