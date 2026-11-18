@@ -259,6 +259,44 @@
       : "On a computer: in Chrome or Edge, click the install icon at the end of the address bar.";
   }
 
+  /* ---------- Links from our emails (verify email, reset password, undo an email change) ---------- */
+  function emailLink() {
+    const q = new URLSearchParams(location.search), m = q.get("mode"), code = q.get("oobCode");
+    if (!code || !["verifyEmail", "resetPassword", "recoverEmail"].includes(m)) return false;
+    history.replaceState(null, "", "account.html");   // the code works once; don't keep it in the address bar
+    const box = html => { $("who").innerHTML = `<div class="panel">${html}</div>`; };
+    const bad = ex => box(`<h2 class="panel-h">${MH.icon("alert")} That link didn't work</h2>
+      <p class="muted">${e(ex && ex.message || "")} If you already used it, you’re all set. Otherwise sign in and ask for a new one.</p>
+      <a class="btn" href="account.html">Go to your account</a>`);
+    box(`<p class="muted" style="margin:0">Checking your link…</p>`);
+    if (m === "resetPassword") {
+      MH_DB.checkResetCode(code).then(email => {
+        box(`<h2 class="panel-h">${MH.icon("lock")} Choose a new password</h2>
+          <p class="small muted" style="overflow-wrap:anywhere">For ${e(email)}</p>
+          <form id="np" novalidate><div class="field"><label for="np-pw">New password</label><input id="np-pw" type="password" autocomplete="new-password" minlength="6"></div>
+          <p class="small" id="np-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
+          <button class="btn" type="submit">Save password</button></form>`);
+        $("np").onsubmit = ev => {
+          ev.preventDefault();
+          const pw = $("np-pw").value;
+          if (pw.length < 6) return ($("np-err").textContent = "Use at least 6 characters.");
+          ev.submitter.disabled = true;
+          MH_DB.finishReset(code, pw).then(() => box(`<h2 class="panel-h">${MH.icon("check")} Password changed</h2>
+              <p class="muted">Sign in with your new password.</p><a class="btn" href="account.html">Sign in</a>`),
+            ex => { ev.submitter.disabled = false; $("np-err").textContent = ex.message; });
+        };
+      }, bad);
+      return true;
+    }
+    MH_DB.applyEmailCode(code).then(async () => {
+      const u = await MH_DB.reloadUser().catch(() => null);
+      box(`<h2 class="panel-h">${MH.icon("check")} ${m === "verifyEmail" ? "Email verified" : "Email change undone"}</h2>
+        <p class="muted">${m === "verifyEmail" ? "Thank you! You can now accept admin invites." : "Your account's email is back to what it was. If you didn't change it, reset your password too."}</p>
+        <a class="btn" href="account.html">${u ? "Continue" : "Sign in"}</a>`);
+    }, bad);
+    return true;
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     // Panel headings use icons from core.js.
     document.querySelectorAll(".panel-h").forEach(h => { h.innerHTML = h.innerHTML.replace(/\$\{(\w+)\}/g, (_, n) => MH.icon(n)); });
@@ -266,6 +304,7 @@
     $("s-change").onclick = () => MH.openSettings();
     MH.onPrefs(drawSettings);
     if (!location.protocol.startsWith("http")) { $("who").innerHTML = `<div class="notice">${MH.icon("alert")}<span>Accounts need the site to be served over http(s).</span></div>`; return; }
+    if (emailLink()) return;
     if (!MH.store.get("account", null)) drawWho(null);   // draw the form at once; Firebase loads in the background
     MH_DB.user().then(u => {
       // Still signed out: keep the form that's already showing, so nothing the person typed is lost.

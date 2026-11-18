@@ -43,6 +43,8 @@
 
   /* ---------- Signing in ---------- */
   const MESSAGES = {
+    "auth/invalid-action-code": "This link has already been used or is out of date.",
+    "auth/expired-action-code": "This link has expired.",
     "auth/invalid-credential": "That email and password don't match. Try again, or reset your password.",
     "auth/wrong-password": "That email and password don't match. Try again, or reset your password.",
     "auth/user-not-found": "There's no account with that email yet. Create one below.",
@@ -80,6 +82,11 @@
   });
   const resendVerification = wrap(async () => { const { au, auth } = await load(); await au.sendEmailVerification(auth.currentUser); });
   const resetPassword = wrap(async email => { const { au, auth } = await load(); await au.sendPasswordResetEmail(auth, email); });
+  // Links in Firebase's emails (verify, reset password, undo an email change) open account.html?mode=...&oobCode=...
+  // once "Customize action URL" in the Firebase console points there. These finish them on our own page.
+  const applyEmailCode = wrap(async code => { const { au, auth } = await load(); await au.applyActionCode(auth, code); });
+  const checkResetCode = wrap(async code => { const { au, auth } = await load(); return au.verifyPasswordResetCode(auth, code); });
+  const finishReset = wrap(async (code, password) => { const { au, auth } = await load(); await au.confirmPasswordReset(auth, code, password); });
   // Picks up "email verified" after the person clicks the link in their email.
   const reloadUser = wrap(async () => {
     const { auth } = await load();
@@ -239,7 +246,7 @@
   }
 
   window.MH_DB = {
-    load, user, friendly, signInGoogle, signInEmail, createAccount, resendVerification, resetPassword, reloadUser,
+    load, user, friendly, signInGoogle, signInEmail, createAccount, resendVerification, resetPassword, reloadUser, applyEmailCode, checkResetCode, finishReset,
     signOut, setName, deleteAccount, pushPrefs, refreshRsvps, toggleRsvp, roles, acceptInvite, declineInvite, acceptAdminInvite, declineAdminInvite, syncNow: afterSignIn,
     addApplication, withdrawApplication, SYNCED
   };
