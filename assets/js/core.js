@@ -707,9 +707,9 @@
     { t: "Prayer", ic: "clock", pages: [["prayer.html", "Times"], ["qibla.html", "Qibla"], ["calendar.html", "Calendar"]] },
     { t: "Events", ic: "calendar", pages: [["events.html", "Events"]] },
     { t: "AI Planner", ic: "sparkle", pages: [["planner.html", "Planner"]] },
-    { t: "Mosques", ic: "pin", pages: [["map.html", "Map"], ["join.html", "Add yours"]], also: ["mosque.html"] },
-    { t: "Community", ic: "chat", pages: [["community.html", "Community"]] },
-    { t: "Donate", ic: "heart", pages: [["donate.html", "Donate"]] }
+    { t: "Mosques", ic: "pin", pages: [["map.html", "Map"], ["join.html", "For mosques"]], also: ["mosque.html"] },
+    { t: "Community", ic: "chat", preview: true, pages: [["community.html", "Community"]] },
+    { t: "Donate", ic: "heart", preview: true, pages: [["donate.html", "Donate"]] }
   ];
 
   let fitNav = () => {};   // set by renderChrome
@@ -724,7 +724,7 @@
     if (iosApp) header.classList.add("has-back");
     header.innerHTML = `<div class="wrap">
       ${backBtn}<a class="logo" href="index.html" aria-label="MasjidHub home">${LOGO}<span>MasjidHub</span></a>
-      <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}</a>`).join("")}</nav>
+      <nav class="links" id="mh-links" aria-label="Main">${here !== "index.html" ? `<a href="index.html" class="home-link">${icon("home")}Home</a>` : ""}${NAV.map(g => `<a href="${g.pages[0][0]}"${g === section ? ' aria-current="page"' : ""}>${icon(g.ic)}${g.t}${g.preview ? `<span class="nav-tag">Preview</span>` : ""}</a>`).join("")}</nav>
       <div class="tools">
         ${READY.length > 1 ? `<button class="icon-btn lang-btn" id="mh-lang" title="Language" aria-label="Change language" aria-haspopup="menu">${icon("globe")}<span class="lbl" translate="no">${langOf().name}</span></button>` : ""}
         <button class="icon-btn" id="mh-text" title="Text size" aria-label="Change text size">${icon("text")}</button>
@@ -786,10 +786,10 @@
       <div class="cols">
         <div><h2>Pray</h2><a href="prayer.html">Prayer Times</a><a href="qibla.html">Qibla Finder</a><a href="calendar.html">Islamic Calendar</a></div>
         <div><h2>Connect</h2><a href="events.html">Events</a><a href="community.html">Community</a><a href="planner.html">AI Day Planner</a></div>
-        <div><h2>Mosques</h2><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">Add Your Mosque</a><a href="admin.html">For mosque admins</a></div>
+        <div><h2>Mosques</h2><a href="map.html">Mosques Near You</a><a href="mosque.html">MCGP</a><a href="join.html">For Mosques</a><a href="admin.html">For mosque admins</a></div>
         <div><h2>Give</h2><a href="donate.html">Donate</a><a href="https://themuslimcenter.org/volunteer">Volunteer</a><a href="https://github.com/faarisaahmed/mc2">About this project</a></div>
       </div>
-      <div class="legal"><span>MasjidHub demo for the Muslim Center of Greater Princeton. MCGP details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span>Mosque data © OpenStreetMap contributors · Map tiles © Esri</span></div>
+      <div class="legal"><span>MasjidHub is in early access. Muslim Center of Greater Princeton details come from <a style="display:inline" href="https://themuslimcenter.org">themuslimcenter.org</a>. Confirm times with your mosque.</span><span><a style="display:inline" href="privacy.html">Privacy</a> · <a style="display:inline" href="terms.html">Terms</a> · Mosque data © OpenStreetMap contributors · Map tiles © Esri</span></div>
     </div>`;
     document.body.appendChild(foot);
 

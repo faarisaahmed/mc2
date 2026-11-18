@@ -577,3 +577,23 @@ details.more[open] summary::before{content:"– "}
 .iq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 .check{display:flex;gap:10px;align-items:flex-start;margin:6px 0 12px}
 .check input{width:20px;height:20px;margin-top:2px;accent-color:var(--green);flex:none}
+
+/* For mosques page: numbered steps and questions */
+.how{list-style:none;counter-reset:how;margin:0;padding:0;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.how li{counter-increment:how;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.how li::before{content:counter(how);display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--soft-gold);color:var(--soft-gold-ink);font-weight:800;margin-bottom:6px}
+.how strong{font-size:1.15rem}
+.faq details{border-top:1px solid var(--line)}
+.faq details:last-child{border-bottom:1px solid var(--line)}
+.faq summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:8px 0;cursor:pointer;font-weight:700;font-size:1.05rem;list-style:none}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .15s}
+.faq details[open] summary::after{transform:rotate(-135deg)}
+.faq details p{margin:0 0 16px}
+@media (prefers-reduced-motion:reduce){.faq summary::after{transition:none}}
+
+/* Legal pages */
+.legal-doc h2:not(.title){font-size:1.3rem;margin:32px 0 8px;letter-spacing:-.015em}
+.legal-doc p,.legal-doc li{line-height:1.6}
+.legal-doc ul{padding-inline-start:22px}
+.nav-tag{font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:980px;background:var(--soft-gold);color:var(--soft-gold-ink);margin-inline-start:4px}
