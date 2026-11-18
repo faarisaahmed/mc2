@@ -6,7 +6,7 @@
    - Fonts and Leaflet from their CDNs: saved copy first, refreshed in the background.
    - Everything else (map tiles, Overpass, Nominatim) is never touched or stored.
    Bump VERSION when the list of files below changes. */
-const VERSION = "v9";
+const VERSION = "v10";
 const CACHE = `masjidhub-${VERSION}`;
 
 const SHELL = [
