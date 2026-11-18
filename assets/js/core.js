@@ -573,7 +573,8 @@
     "ios-share": '<path d="M12 3.5v11M8.5 7 12 3.5 15.5 7"/><path d="M9 10H6.5v10.5h11V10H15"/>',   // the iPhone Share button
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 20.5c1.4-3.6 4.4-5.5 8-5.5s6.6 1.9 8 5.5"/>',
     shield: '<path d="M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
-    mobile: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'
+    mobile: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>'
   };
   const DIRECTIONAL = { arrow: 1, back: 1 }; // mirrored in right-to-left languages
   function icon(name, cls) {

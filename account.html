@@ -136,8 +136,12 @@
     $("who").innerHTML = `<div class="panel">
       <div class="who-row"><span class="avatar" aria-hidden="true">${e((u.displayName || u.email || "?").trim()[0].toUpperCase())}</span>
         <div style="min-width:0"><h2 style="margin:0;font-size:1.3rem" id="w-name">${e(u.displayName || "Your account")}</h2><div class="small muted" style="overflow-wrap:anywhere">${e(u.email || "")}</div></div></div>
-      ${u.emailVerified ? "" : `<div class="notice" style="margin-top:16px">${MH.icon("alert")}<span>Please verify your email: we sent a link to ${e(u.email)}. You need this to join a mosque's admin team.
-        <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" id="v-done" type="button">I've verified it</button><button class="btn sm ghost" id="v-again" type="button">Send it again</button></span></span></div>`}
+      ${u.emailVerified ? "" : `<div class="verify" role="status" aria-live="polite">
+        <div class="verify-ic" aria-hidden="true">${MH.icon("mail")}</div>
+        <div style="min-width:0"><strong>Check your inbox</strong>
+          <p class="small muted" style="margin:4px 0 0">We sent a link to <b style="overflow-wrap:anywhere">${e(u.email)}</b>. Open it to verify your email; this page updates by itself. Not there? Look in spam.</p>
+          <p class="small muted" style="margin:6px 0 0">You only need this to help run a mosque or MasjidHub.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn sm" id="v-done" type="button">I've verified it</button><button class="btn sm ghost" id="v-again" type="button">Send it again</button></div></div></div>`}
       <div class="row" style="margin-top:16px;align-items:end"><div class="field" style="margin:0"><label for="w-edit">Your name</label><input id="w-edit" type="text" autocomplete="name" value="${e(u.displayName || "")}"></div>
         <div><button class="btn sm ghost" id="w-save" type="button">Save name</button></div></div>
     </div>
@@ -150,13 +154,32 @@
       <p class="small muted" style="margin:12px 0 0">Deleting removes your account, your saved settings and your event sign-ups. Settings on this device stay.</p>
     </div>`;
     if ($("v-done")) $("v-done").onclick = async () => { const nu = await MH_DB.reloadUser().catch(() => null); if (nu && nu.emailVerified) { MH.toast("Email verified. Thank you!"); drawSignedIn(); } else MH.toast("Not verified yet. Open the link in the email, then try again."); };
-    if ($("v-again")) $("v-again").onclick = () => MH_DB.resendVerification().then(() => MH.toast("Sent. Check your inbox and spam folder."), ex => MH.toast(ex.message));
+    if ($("v-again")) $("v-again").onclick = ev => {
+      const b = ev.currentTarget; b.disabled = true;
+      MH_DB.resendVerification().then(() => { MH.toast("Sent. Check your inbox and spam folder."); setTimeout(() => { b.disabled = false; }, 30000); }, ex => { b.disabled = false; MH.toast(ex.message); });
+    };
+    if (!u.emailVerified) watchVerified();
     $("w-save").onclick = () => { const n = $("w-edit").value.trim(); if (!n) return MH.toast("Please add your name."); MH_DB.setName(n).then(() => { $("w-name").textContent = n; MH.toast("Saved"); }, ex => MH.toast(ex.message)); };
     $("out").onclick = () => MH_DB.signOut().then(() => { MH.toast("Signed out"); mode = "signin"; drawWho(null); });
     $("del").onclick = () => {
       if (!confirm("Delete your MasjidHub account? This removes your account, saved settings and event sign-ups. It can't be undone.")) return;
       MH_DB.deleteAccount().then(() => { MH.store.set("account", null); MH.toast("Your account was deleted"); drawWho(null); }, ex => MH.toast(ex.message));
     };
+  }
+
+  // While "Check your inbox" shows: notice the verification without a click, when the person comes back to this tab
+  // (after opening the link in another one) and every 10 seconds while the tab is open.
+  let verifyTimer = null;
+  function watchVerified() {
+    clearInterval(verifyTimer);
+    const check = async () => {
+      if (!$("v-done")) { clearInterval(verifyTimer); return; }
+      if (document.hidden) return;
+      const nu = await MH_DB.reloadUser().catch(() => null);
+      if (nu && nu.emailVerified && $("v-done")) { clearInterval(verifyTimer); MH.toast("Email verified. Thank you!"); drawSignedIn(); }
+    };
+    verifyTimer = setInterval(check, 10000);
+    document.addEventListener("visibilitychange", check);
   }
 
   function mosqueName(id) { const m = MH_DATA.mosques.find(x => x.id === id); return m ? m.name : id; }
