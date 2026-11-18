@@ -4,5 +4,17 @@
     "location": "nam5",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        "preview.js",
+        "preview-*.html",
+        ".gitignore"
+      ]
+    }
+  ]
 }

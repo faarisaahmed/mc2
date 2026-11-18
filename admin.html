@@ -186,12 +186,14 @@
   const steps = email => `1. Open the "Sign in to MasjidHub" email we sent to ${email} and tap the link. That signs you in; no password needed.\n   (No email? Open ${new URL("account.html", location.href).href} and sign in or create an account with ${email}.)\n2. Tap Accept on the invite.`;
   // Emails the invitee a one-tap sign-in link (Firebase's "Sign in to MasjidHub" email). Works whether or not they
   // have an account yet. Returns false if it couldn't be sent, so the admin knows to send the message themselves.
-  const emailInvite = email => MH_DB.sendInviteLink(email).then(() => true, () => false);
+  // With server emails on (functions/), the invite email goes out by itself when the invite is saved.
+  const emailInvite = email => MH_DB.SERVER_EMAILS ? Promise.resolve("server") : MH_DB.sendInviteLink(email).then(() => true, () => false);
   function sendSheet(email, text, sent) {
     const bd = document.createElement("div");
     bd.className = "sheet-backdrop open";
     bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="im-t"><h2 id="im-t">${sent ? "Invite sent" : "Let them know"}</h2>
-      ${sent ? `<p class="muted">We emailed <strong>${e(email)}</strong> a sign-in link. The email only says "Sign in to MasjidHub", so it helps to send this note too, and to check their spam folder:</p>`
+      ${sent === "server" ? `<p class="muted">We emailed <strong>${e(email)}</strong> an invite with a button to join. If it doesn't arrive, ask them to check spam, or send them this:</p>`
+        : sent ? `<p class="muted">We emailed <strong>${e(email)}</strong> a sign-in link. The email only says "Sign in to MasjidHub", so it helps to send this note too, and to check their spam folder:</p>`
         : sent === false ? `<p class="muted">We couldn't email <strong>${e(email)}</strong> automatically. Send them this:</p>`
         : `<p class="muted">Send this to <strong>${e(email)}</strong>:</p>`}
       <textarea readonly style="min-height:200px">${e(text)}</textarea>
