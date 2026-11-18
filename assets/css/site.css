@@ -516,6 +516,12 @@ details.more[open] summary::before{content:"– "}
 .setting-row>div{min-width:0}
 .setting-row .btn{flex:none}
 .setting-row .acts{display:flex;gap:8px;flex:none}
+/* Quiet text actions under a list item (dashboard invites): still 44px tall to tap, but not a row of big buttons. */
+.link-acts{display:flex;flex-wrap:wrap;gap:0 18px;margin-top:2px}
+.link-acts button,.link-btn{background:none;border:0;padding:0;min-height:44px;color:var(--accent);font:inherit;font-size:.92rem;font-weight:600;cursor:pointer}
+.link-acts button.danger{color:var(--danger)}
+.link-acts button:hover,.link-btn:hover{text-decoration:underline}
+.link-acts button:disabled{opacity:.5;cursor:default}
 .verify{display:flex;gap:14px;align-items:flex-start;margin-top:16px;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--gold) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold) 35%,transparent)}
 .verify-ic{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--gold);color:var(--green-deep)}
 @media (max-width:420px){.setting-row{flex-wrap:wrap}.setting-row .btn{width:100%}.setting-row .acts{width:100%}.setting-row .acts .btn{width:auto;flex:1}}
