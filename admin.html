@@ -94,30 +94,89 @@
   }
 
   function draw() {
-    $("pick-wrap").innerHTML = mosques.length > 1 ? `<label class="sr-only" for="pick">Mosque</label><select id="pick" style="min-height:44px;padding:6px 12px;max-width:60vw">${mosques.map(m => `<option value="${e(m.id)}"${current && m.id === current.id ? " selected" : ""}>${e(m.name)}</option>`).join("")}</select>` : "";
+    // Two views: one mosque (its own tabs, with the mosque picker), or all of MasjidHub (site admin tabs).
+    const siteTabs = [];
+    if (roles.perms.applications) siteTabs.push(["applications", "Applications"]);
+    if (roles.perms.mosques) siteTabs.push(["mosques", "Mosques"]);
+    if (roles.top) siteTabs.push(["admins", "Site admins"]);
+    if (!current && !siteTabs.length) return screen(`<p class="muted">Nothing to manage yet.</p>`);
+    const siteView = !current || SITE_TABS.includes(tab) && siteTabs.length > 0;
+    $("pick-wrap").innerHTML = !siteView && mosques.length > 1 ? `<label class="sr-only" for="pick">Mosque</label><select id="pick" style="min-height:44px;padding:6px 12px;max-width:60vw">${mosques.map(m => `<option value="${e(m.id)}"${current && m.id === current.id ? " selected" : ""}>${e(m.name)}</option>`).join("")}</select>` : "";
     if ($("pick")) $("pick").onchange = ev => { current = mosques.find(m => m.id === ev.target.value); if (SITE_TABS.includes(tab)) tab = "announcements"; setUrl(); draw(); };
-    const tabs = [];
-    if (roles.perms.applications) tabs.push(["applications", "Applications"]);
-    if (roles.top) tabs.push(["admins", "Site admins"]);
-    if (current && current.inDb) {
+    const tabs = siteView ? siteTabs : [];
+    if (!siteView && current.inDb) {
       tabs.push(["announcements", "Announcements"], ["events", "Events"], ["times", "Prayer times"], ["signups", "Sign-ups"]);
       if (canOwn(current.id)) tabs.push(["info", "Mosque info"], ["team", "Team"]);
     }
     if (!tabs.some(t => t[0] === tab)) tab = tabs.length ? tabs[0][0] : "";
-    screen(`${current || SITE_TABS.includes(tab) ? `<p class="eyebrow" style="margin:0 0 4px">${roles.top ? "Top admin" : roles.perms.mosques || !current || SITE_TABS.includes(tab) ? "Site admin" : canOwn(current.id) ? "Owner" : "Editor"}</p>
-      <h2 class="title" style="margin:0 0 16px">${SITE_TABS.includes(tab) ? "All of MasjidHub" : e(current.name)}</h2>` : ""}
+    const sw = siteTabs.length && current ? `<button class="link-btn" type="button" id="view-sw" style="margin-bottom:4px">${siteView ? `Back to ${e(current.short || current.name)}` : `All of MasjidHub: ${siteTabs.map(t => t[1].toLowerCase()).join(", ")}`}</button>` : "";
+    screen(`${sw}<p class="eyebrow" style="margin:0 0 4px">${roles.top ? "Top admin" : roles.perms.mosques || siteView ? "Site admin" : canOwn(current.id) ? "Owner" : "Editor"}</p>
+      <h2 class="title" style="margin:0 0 16px">${siteView ? "All of MasjidHub" : e(current.name)}</h2>
       ${tabs.length ? `<div class="dash-tabs" role="tablist">${tabs.map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === tab}">${t}</button>`).join("")}</div>` : ""}
+      ${!siteView && current.inDb ? `<div id="setup"></div>` : ""}
       <div id="pane"></div>`);
+    if ($("setup")) drawSetup().catch(() => {});
     document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; setUrl(); draw(); });
-    if (current && !current.inDb && !SITE_TABS.includes(tab)) return drawStart();
-    Promise.resolve(({ applications: drawApplications, admins: drawAdmins, announcements: drawAnnouncements, events: drawEvents, times: drawTimes, signups: drawSignups, info: drawInfo, team: drawTeam }[tab] || drawStart)())
+    if ($("view-sw")) $("view-sw").onclick = () => { tab = siteView ? "announcements" : siteTabs[0][0]; setUrl(); draw(); };
+    if (!siteView && !current.inDb) return drawStart();
+    Promise.resolve(({ applications: drawApplications, mosques: drawMosques, admins: drawAdmins, announcements: drawAnnouncements, events: drawEvents, times: drawTimes, signups: drawSignups, info: drawInfo, team: drawTeam }[tab] || drawStart)())
       .catch(ex => pane(`<div class="notice">${MH.icon("alert")}<span>Couldn't load this: ${e(MH_DB.friendly(ex).message)} Reload the page to try again.${ex && ex.code ? ` <span class="small muted">(${e(ex.code)})</span>` : ""}</span></div>`));
   }
-  const SITE_TABS = ["applications", "admins"];   // about the whole site, not the mosque picked above
+  const SITE_TABS = ["applications", "mosques", "admins"];   // about the whole site, not the mosque picked above
   function setUrl() { history.replaceState(null, "", `admin.html?m=${encodeURIComponent(current ? current.id : "")}&tab=${tab}`); }
   const pane = html => { $("pane").innerHTML = html; };
   const col = name => fs.collection(db, "mosques", current.id, name);
   const ref = (name, id) => fs.doc(db, "mosques", current.id, name, id);
+
+  /* ---------------- Getting a mosque ready (shown until it's done) ---------------- */
+  // A newly approved mosque starts empty. This lists what visitors need, with a link to the tab that fixes each.
+  async function drawSetup() {
+    const m = current, el = $("setup");
+    const events = (await fs.getCountFromServer(col("events"))).data().count;
+    if (m !== current || !el) return;   // switched mosque while counting
+    const owner = canOwn(m.id);
+    const items = [
+      ["Iqamah times", Object.keys(m.iqamah || {}).length > 0, "times"],
+      ["Jumu'ah times", (m.jumuah || []).length > 0, "times"],
+      ["A short description", !!(m.about || "").trim(), owner ? "info" : null],
+      ["At least one event", events > 0, "events"]
+    ];
+    const left = items.filter(x => !x[1]);
+    if (!left.length) { el.innerHTML = ""; return; }
+    el.innerHTML = `<div class="panel setup"><h2 class="panel-h" style="margin-bottom:6px">${MH.icon("sparkle")} Get ${e(m.short || m.name)} ready</h2>
+      <p class="small muted" style="margin:0 0 8px">${items.length - left.length} of ${items.length} done. These are what visitors look for first.</p>
+      <ul class="setup-list">${items.map(([t, done, go]) => `<li class="${done ? "done" : ""}">${MH.icon(done ? "check" : "plus")}<span>${t}</span>${!done && go ? `<button class="link-btn" type="button" data-go="${go}">Add</button>` : ""}</li>`).join("")}</ul></div>`;
+    el.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { tab = b.dataset.go; setUrl(); draw(); });
+  }
+
+  /* ---------------- Every mosque (site admins) ---------------- */
+  function drawMosques() {
+    const live = mosques.filter(m => m.inDb), builtin = mosques.filter(m => !m.inDb);
+    const row = m => `<div class="list-row" data-mid="${e(m.id)}" data-q="${e(((m.name || "") + " " + (m.address || "") + " " + m.id).toLowerCase())}"><div style="min-width:0">
+        <strong>${e(m.name)}</strong> ${m.inDb ? `<span class="pill ${m.published ? "" : "gray"}">${m.published ? "Shown" : "Hidden"}</span>` : `<span class="pill gray">Not managed yet</span>`}
+        ${m.address ? `<div class="small muted">${e(m.address)}</div>` : ""}
+        <div class="link-acts"><button type="button" data-open="${e(m.id)}">${m.inDb ? "Open dashboard" : "Start managing"}</button>
+          ${m.inDb ? `<a href="mosque.html?id=${encodeURIComponent(m.id)}" class="small" style="display:inline-flex;align-items:center;min-height:44px;font-weight:600">View page</a>
+          <button type="button" data-pub="${e(m.id)}"${m.published ? ` class="danger"` : ""}>${m.published ? "Hide from MasjidHub" : "Show on MasjidHub"}</button>` : ""}</div></div></div>`;
+    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("mosque")} Mosques (${live.length})</h2>
+      <div class="field" style="margin:0 0 6px"><label for="mq" class="sr-only">Search mosques</label><input id="mq" type="search" placeholder="Search mosques" autocomplete="off"></div>
+      <div id="mlist">${live.map(row).join("") || `<p class="muted">No mosques in the database yet.</p>`}</div>
+      ${pendingBox("From the built-in list, not managed here yet", builtin.length, `<p class="small muted" style="margin:4px 0 0">These come from data.js. Start managing one to edit it here.</p>`, builtin.map(row).join(""))}
+      <p class="small muted" style="margin:14px 0 0">New mosques arrive through Applications. Hidden mosques stay in the database but don't appear on the map, search or events.</p></div>`);
+    $("mq").oninput = () => {
+      const q = $("mq").value.trim().toLowerCase();
+      $("pane").querySelectorAll("[data-q]").forEach(r => { r.hidden = !!q && !r.dataset.q.includes(q); });
+    };
+    $("pane").querySelectorAll("[data-open]").forEach(b => b.onclick = () => { current = mosques.find(x => x.id === b.dataset.open); tab = current.inDb ? "times" : "announcements"; setUrl(); draw(); });
+    $("pane").querySelectorAll("[data-pub]").forEach(b => b.onclick = () => {
+      const m = mosques.find(x => x.id === b.dataset.pub), to = !m.published;
+      if (!to && !confirm(`Hide ${m.name}? It disappears from the map, search and events until you show it again. Its team keeps access.`)) return;
+      busy(b, async () => {
+        await fs.updateDoc(fs.doc(db, "mosques", m.id), { published: to, updated: fs.serverTimestamp(), updatedBy: me.uid });
+        m.published = to; MH.toast(to ? `${m.name} is shown again` : `${m.name} is hidden`); drawMosques(); published();
+      });
+    });
+  }
 
   /* ---------------- Start managing a data.js mosque ---------------- */
   function drawStart() {
@@ -140,29 +199,98 @@
   }
 
   /* ---------------- Applications (site admin) ---------------- */
+  /* Applications move through: pending (waiting for review) -> info (we asked the applicant something) ->
+     approved (mosque created, applicant invited as owner) or rejected. A note goes with "info" and "rejected";
+     the applicant sees it on their Account page and, with server emails on, gets it by email. */
+  const APP_GROUPS = [["pending", "Waiting for review"], ["info", "Waiting on the applicant"], ["approved", "Approved"], ["rejected", "Not approved"]];
+  const norm = x => (x || "").toLowerCase().replace(/\b(the|masjid|mosque|islamic|center|centre|of|society)\b/g, "").replace(/[^a-z0-9]/g, "");
+  // Mosques that might be the same place: within 400 m, or the same name once words like "masjid" are dropped.
+  function possibleDupes(a) {
+    const seen = new Map();
+    MH_DATA.mosques.concat(mosques).forEach(m => { if (m && m.name && !seen.has(m.id)) seen.set(m.id, m); });
+    return [...seen.values()].map(m => ({ m, km: m.lat != null && a.lat != null ? MH.distanceKm(a, m) : null }))
+      .filter(x => (x.km != null && x.km < 0.4) || (norm(x.m.name) && norm(x.m.name) === norm(a.name)))
+      .map(x => `${x.m.name}${x.km != null ? ` (${MH.fmtDistance(x.km)} away)` : ""}`);
+  }
+  const shortDate = ts => ts && ts.seconds ? new Date(ts.seconds * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+
   async function drawApplications() {
     pane(`<p class="muted">Loading…</p>`);
     const s = await fs.getDocs(fs.collection(db, "applications"));
     const apps = s.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (b.submitted && b.submitted.seconds || 0) - (a.submitted && a.submitted.seconds || 0));
-    const pending = apps.filter(a => a.status === "pending"), done = apps.filter(a => a.status !== "pending");
-    const row = a => `<div class="list-row"><div>
-        <strong>${e(a.name)}</strong> ${a.status === "pending" ? "" : `<span class="pill ${a.status === "approved" ? "" : "gray"}">${a.status}</span>`}
-        <div class="small muted">${e(a.address)}</div>
-        <div class="small" style="margin-top:6px">${e(a.contact)} (${e(a.role)}) · <a href="mailto:${e(a.email)}">${e(a.email)}</a>${a.phone ? " · " + e(a.phone) : ""}</div>
-        ${a.website ? `<div class="small"><a href="${/^https?:\/\//.test(a.website) ? e(a.website) : "https://" + e(a.website)}" target="_blank" rel="noopener">${e(a.website)}</a></div>` : ""}
-        ${a.jumuah ? `<div class="small muted">Jumu'ah: ${e(a.jumuah)}</div>` : ""}
-        ${a.notes ? `<div class="small muted" style="white-space:pre-line">${e(a.notes)}</div>` : ""}
-        <div class="small muted">Submitted ${a.submitted ? new Date(a.submitted.seconds * 1000).toLocaleDateString() : ""}</div></div>
-      ${a.status === "pending" ? `<div class="acts"><button class="btn sm gold" type="button" data-ok="${a.id}"${roles.perms.mosques ? "" : ` disabled title="Approving adds a mosque, which needs the 'Manage every mosque' permission"`}>Approve</button><button class="btn sm danger" type="button" data-no="${a.id}">Reject</button></div>` : ""}</div>`;
-    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("mosque")} Waiting for review (${pending.length})</h2>
-        ${pending.length ? pending.map(row).join("") : `<p class="muted" style="margin:0">No applications waiting.</p>`}
-        ${roles.perms.mosques ? "" : `<p class="small muted" style="margin:14px 0 0">Approving adds a mosque, so it needs the "Manage every mosque" permission. Ask the top admin, or reject and leave approvals to them.</p>`}
-        <p class="small muted" style="margin:14px 0 0">Before approving, check the mosque is real (website, a phone call, or the contact's role). Approving puts it on the map and invites the applicant's email as its owner.</p></div>
-      ${done.length ? `<div class="panel" style="margin-top:18px"><h2 class="panel-h">Reviewed</h2>${done.slice(0, 20).map(row).join("")}</div>` : ""}`);
-    $("pane").querySelectorAll("[data-ok]").forEach(b => b.onclick = () => busy(b, () => approve(apps.find(a => a.id === b.dataset.ok))));
-    $("pane").querySelectorAll("[data-no]").forEach(b => b.onclick = () => {
-      if (!confirm("Reject this application? The applicant isn't emailed automatically; let them know yourself.")) return;
-      busy(b, async () => { await fs.updateDoc(fs.doc(db, "applications", b.dataset.no), { status: "rejected", reviewed: fs.serverTimestamp() }); drawApplications(); });
+    const by = k => apps.filter(a => a.status === k);
+    const site = u => /^https?:\/\//.test(u) ? u : "https://" + u;
+    const card = a => {
+      const d = a.status === "pending" || a.status === "info" ? possibleDupes(a) : [];
+      const open = a.status === "pending" || a.status === "info";
+      return `<div class="app-card" data-app="${e(a.id)}">
+        <div class="app-head"><div style="min-width:0"><strong>${e(a.name)}</strong><div class="small muted">${e(a.address)}</div></div><span class="small muted" style="flex:none">${shortDate(a.submitted)}</span></div>
+        ${d.length ? `<div class="notice" style="margin:10px 0 0">${MH.icon("alert")}<span class="small">Might already be on MasjidHub: ${e(d.join(", "))}. Check before approving.</span></div>` : ""}
+        ${a.note ? `<p class="small" style="margin:10px 0 0"><strong>${a.status === "rejected" ? "Reason given" : "You asked"}:</strong> ${e(a.note)}</p>` : ""}
+        <details class="app-more"><summary>Details</summary><div class="small" style="line-height:1.7">
+          ${e(a.contact)} (${e(a.role)}) · <a href="mailto:${e(a.email)}">${e(a.email)}</a>${a.phone ? " · " + e(a.phone) : ""}<br>
+          ${a.website ? `<a href="${e(site(a.website))}" target="_blank" rel="noopener">${e(a.website)}</a><br>` : ""}
+          ${a.method ? `Prayer method: ${e((MH.METHODS[a.method] || { t: a.method }).t)}<br>` : ""}
+          ${a.jumuah ? `Jumu'ah: ${e(a.jumuah)}<br>` : ""}
+          ${(a.features || []).length ? `Has: ${e(a.features.join(", "))}<br>` : ""}
+          ${a.notes ? `<span style="white-space:pre-line">${e(a.notes)}</span>` : ""}</div></details>
+        <div class="app-form"></div>
+        ${open ? `<div class="app-acts">
+            <button class="btn sm gold" type="button" data-ok${roles.perms.mosques ? "" : " disabled"}>Approve</button>
+            <div class="link-acts" style="margin:0"><button type="button" data-edit>Edit details</button><button type="button" data-info>Ask for more info</button><button type="button" class="danger" data-no>Decline</button></div></div>`
+          : a.status === "approved" && a.mosqueId ? `<div class="link-acts"><button type="button" data-goto="${e(a.mosqueId)}">Open its dashboard</button></div>`
+          : `<div class="link-acts"><button type="button" data-reopen>Move back to waiting</button></div>`}
+      </div>`;
+    };
+    const pend = by("pending");
+    pane(`<div class="panel"><h2 class="panel-h">${MH.icon("mosque")} Waiting for review (${pend.length})</h2>
+        <p class="small muted" style="margin:0 0 6px">Check each mosque is real (its website, a phone call, or the contact's role). Approving puts it on the map and emails the applicant an invite to run its page.${roles.perms.mosques ? "" : ` Approving needs the "Manage every mosque" permission; you can still ask for info or decline.`}</p>
+        ${pend.length ? pend.map(card).join("") : `<p class="muted" style="margin:12px 0 0">Nothing waiting. New applications from <a href="join.html">Add your mosque</a> show up here.</p>`}
+        ${APP_GROUPS.slice(1).map(([k, t]) => pendingBox(t, by(k).length, "", by(k).map(card).join(""))).join("")}</div>`);
+
+    const appOf = el => apps.find(a => a.id === el.closest("[data-app]").dataset.app);
+    const save = (a, data, msg) => fs.updateDoc(fs.doc(db, "applications", a.id), Object.assign({ reviewed: fs.serverTimestamp() }, data)).then(() => { MH.toast(msg); drawApplications(); });
+    // A small form inside the card (note to the applicant, or edits), so nothing pops up over the page.
+    function inline(el, html, onSubmit) {
+      const box = el.closest("[data-app]").querySelector(".app-form");
+      box.innerHTML = `<form class="app-inline" novalidate>${html}<p class="small" role="alert" style="color:var(--danger);min-height:1.2em;margin:4px 0"></p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn sm" type="submit">Save</button><button class="btn sm ghost" type="button" data-x>Cancel</button></div></form>`;
+      const f = box.querySelector("form");
+      f.querySelector("[data-x]").onclick = () => { box.innerHTML = ""; };
+      f.onsubmit = ev => { ev.preventDefault(); const err = onSubmit(f); if (typeof err === "string") f.querySelector("[role=alert]").textContent = err; };
+      const first = f.querySelector("input,textarea,select"); if (first) first.focus();
+    }
+    const noteField = (label, hint, value) => `<div class="field" style="margin:12px 0 0"><label>${label}<textarea rows="3" name="note" maxlength="1000">${e(value || "")}</textarea></label>
+      <span class="small muted">${hint}</span></div>`;
+
+    $("pane").querySelectorAll("[data-ok]").forEach(b => b.onclick = () => {
+      const a = appOf(b);
+      if (confirm(`Approve ${a.name}? It goes on the map now, and ${a.email} gets an email inviting them to run its page.`)) busy(b, () => approve(a));
+    });
+    $("pane").querySelectorAll("[data-info]").forEach(b => b.onclick = () => inline(b,
+      noteField("What do you need from them?", MH_DB.SERVER_EMAILS ? "We email this to the applicant and show it on their Account page." : "Shown on their Account page if they applied while signed in. Email them too.", appOf(b).note),
+      f => { const note = f.note.value.trim(); if (!note) return "Please write what you need."; busy(f.querySelector("[type=submit]"), () => save(appOf(b), { status: "info", note }, "Sent to the applicant")); }));
+    $("pane").querySelectorAll("[data-no]").forEach(b => b.onclick = () => inline(b,
+      noteField("Reason (optional)", "Kind and short. The applicant sees this.", ""),
+      f => { busy(f.querySelector("[type=submit]"), () => save(appOf(b), { status: "rejected", note: f.note.value.trim() }, "Application declined")); }));
+    $("pane").querySelectorAll("[data-reopen]").forEach(b => b.onclick = () => busy(b, () => save(appOf(b), { status: "pending" }, "Moved back to waiting")));
+    $("pane").querySelectorAll("[data-goto]").forEach(b => b.onclick = () => {
+      const m = mosques.find(x => x.id === b.dataset.goto);
+      if (!m) return MH.toast("That mosque isn't in your list. Reload and try again.");
+      current = m; tab = "times"; setUrl(); draw();
+    });
+    $("pane").querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
+      const a = appOf(b), fld = (k, t, type) => `<div class="field" style="margin:10px 0 0"><label>${t}<input name="${k}" type="${type || "text"}" value="${e(a[k] || "")}"></label></div>`;
+      inline(b, `${fld("name", "Mosque name")}${fld("address", "Address")}
+        <p class="small muted" style="margin:4px 0 0">The map pin stays where the applicant put it.</p>
+        <div class="row">${fld("phone", "Phone", "tel")}${fld("website", "Website", "url")}</div>
+        <div class="row"><div class="field" style="margin:10px 0 0"><label>Prayer time method<select name="method">${Object.entries(MH.METHODS).map(([k, m]) => `<option value="${k}"${k === (a.method || "ISNA") ? " selected" : ""}>${m.t}</option>`).join("")}</select></label></div>${fld("jumuah", "Jumu'ah times")}</div>`,
+        f => {
+          const d = {}; ["name", "address", "phone", "website", "method", "jumuah"].forEach(k => { d[k] = f[k].value.trim(); });
+          if (d.name.length < 2) return "Please add the mosque's name.";
+          if (d.address.length < 5) return "Please add the address.";
+          busy(f.querySelector("[type=submit]"), () => fs.updateDoc(fs.doc(db, "applications", a.id), d).then(() => { MH.toast("Saved"); drawApplications(); }));
+        });
     });
   }
   async function approve(a) {

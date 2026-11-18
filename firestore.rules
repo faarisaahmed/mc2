@@ -195,7 +195,15 @@ service cloud.firestore {
       allow create: if validApplication(request.resource.data);
       allow get: if can("applications") || (signedIn() && resource.data.get("uid", "") == me());
       allow list: if can("applications") || (signedIn() && resource.data.get("uid", "") == me());
-      allow update: if can("applications") && changed().hasOnly(["status", "mosqueId", "reviewed"]);
+      // Reviewers move it along (waiting, info asked, approved, declined), leave a note for the applicant,
+      // and may fix its details before approving.
+      allow update: if can("applications")
+        && changed().hasOnly(["status", "mosqueId", "reviewed", "note", "name", "address", "phone", "website", "method", "jumuah"])
+        && request.resource.data.status in ["pending", "info", "approved", "rejected"]
+        && str(request.resource.data.name, 2, 120) && str(request.resource.data.address, 5, 200)
+        && optStr(request.resource.data, "note", 1000) && optStr(request.resource.data, "phone", 40)
+        && optStr(request.resource.data, "website", 300) && optStr(request.resource.data, "method", 20)
+        && optStr(request.resource.data, "jumuah", 100);
       allow delete: if true;   // withdrawing needs the unguessable doc id, which only the submitter's browser has
     }
 

@@ -123,7 +123,8 @@ Every page loads scripts in this order:
     (true = events come from the database, not `data.js`). Subcollections: `members`, `invites` (doc id = lowercased
     email), `events` (same fields as `data.js` events, plus `rsvp`/`volunteer`), `announcements`, `rsvps`
     (doc id = `<event>_<yyyy-mm-dd>_<uid>`).
-  - `applications`: Add your mosque. Anyone creates; site admins with `perms.applications` review; signed-in applicants see their own.
+  - `applications`: Add your mosque. `status`: pending, info (reviewer asked something, see `note`), approved (`mosqueId`),
+    rejected. Anyone creates; site admins with `perms.applications` review and may edit details first; signed-in applicants see their own.
 - Public pages read content through `assets/js/content.js` (Firestore REST, no SDK, cached in `mh:content`) and
   redraw through `MH.onPrefs` listeners when it changes. `data.js` stays the fallback for mosques not yet managed.
 - Server code lives in `functions/` (Cloud Functions, Node 22). It is written but not deployed until the project is on the

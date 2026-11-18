@@ -221,8 +221,10 @@
   }
   function drawApps(apps) {
     $("apps").innerHTML = apps.length ? `<div class="panel"><h2 class="panel-h">${MH.icon("mosque")} Your mosque applications</h2>
-      ${apps.map(a => `<div class="setting-row"><div><strong>${e(a.name)}</strong><div class="small muted">${e(a.address)}</div></div>
-        <span class="pill ${a.status === "approved" ? "" : "gray"}">${a.status === "approved" ? "Approved" : a.status === "rejected" ? "Not approved" : "Pending review"}</span></div>`).join("")}
+      ${apps.map(a => `<div class="setting-row"><div><strong>${e(a.name)}</strong><div class="small muted">${e(a.address)}</div>
+          ${a.note && (a.status === "info" || a.status === "rejected") ? `<p class="small" style="margin:6px 0 0"><strong>${a.status === "info" ? "The MasjidHub team asks" : "Note from the MasjidHub team"}:</strong> ${e(a.note)}</p>` : ""}
+          ${a.status === "info" ? `<p class="small muted" style="margin:4px 0 0">Reply to the email we sent you, and we'll pick it up from there.</p>` : ""}</div>
+        <span class="pill ${a.status === "approved" ? "" : "gray"}" style="flex:none">${{ approved: "Approved", rejected: "Not approved", info: "Needs info" }[a.status] || "Pending review"}</span></div>`).join("")}
       ${apps.some(a => a.status === "approved") ? `<p class="small muted" style="margin:10px 0 0">Approved: your invite to manage the mosque is above once your email is verified.</p>` : ""}</div>` : "";
   }
 

@@ -523,6 +523,22 @@ details.more[open] summary::before{content:"– "}
 .link-acts button:hover,.link-btn:hover{text-decoration:underline}
 .link-acts button:disabled{opacity:.5;cursor:default}
 .pending{margin-top:18px;border-top:1px solid var(--line)}
+/* Dashboard: setup checklist */
+.setup{margin-bottom:18px}
+.setup-list{list-style:none;margin:0;padding:0}
+.setup-list li{display:flex;align-items:center;gap:10px;min-height:44px;border-top:1px solid var(--line)}
+.setup-list li:first-child{border-top:0}
+.setup-list li span{flex:1}
+.setup-list li .ic{color:var(--muted)}
+.setup-list li.done span{color:var(--muted);text-decoration:line-through}
+.setup-list li.done .ic{color:var(--accent)}
+/* Dashboard: mosque applications */
+.app-card{padding:16px 0;border-top:1px solid var(--line)}
+.app-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.app-more>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--accent);font-weight:600;font-size:.92rem;width:max-content}
+.app-acts{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap}
+.app-inline{margin:4px 0 12px}
+.app-inline textarea,.app-inline input,.app-inline select{display:block;width:100%;margin-top:6px}
 .pending>summary{display:flex;align-items:center;gap:8px;min-height:48px;cursor:pointer;font-weight:700;font-size:1.05rem;list-style:none}
 .pending>summary::-webkit-details-marker{display:none}
 .pending>summary::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-inline-start:4px;transition:transform .15s}
