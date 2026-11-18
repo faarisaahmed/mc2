@@ -81,7 +81,8 @@
     await afterSignIn();
   });
   // After using a link in our emails, Firebase's page offers a "Continue" button back to the Account page.
-  const backHere = () => ({ url: new URL("account.html", location.href).href });
+  // Only on the live site: other hosts (localhost, forks) aren't on Firebase's authorized domains list, which would make sending fail.
+  const backHere = () => location.hostname === "faarisaahmed.github.io" ? { url: new URL("account.html", location.href).href } : undefined;
   const resendVerification = wrap(async () => { const { au, auth } = await load(); await au.sendEmailVerification(auth.currentUser, backHere()); });
   const resetPassword = wrap(async email => { const { au, auth } = await load(); await au.sendPasswordResetEmail(auth, email, backHere()); });
   // Links in Firebase's emails (verify, reset password, undo an email change) open account.html?mode=...&oobCode=...
