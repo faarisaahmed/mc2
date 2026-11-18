@@ -1091,5 +1091,15 @@
   // It stores nothing personal and sends nothing anywhere. Needs http(s); skipped on file://.
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    // A new version took over (sw.js VERSION changed): this page is still the old saved copy, so reload into the
+    // new one. Not if the person has started typing (they'd lose it), and not on the very first visit.
+    let typed = false;
+    document.addEventListener("input", () => { typed = true; }, { once: true });
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (typed) toast("MasjidHub was updated. Reload the page to see what's new.");
+        else location.reload();
+      }, { once: true });
+    }
   }
 })();
