@@ -197,6 +197,9 @@
     const { fs, db, auth } = await load();
     await firstUser; const u = auth.currentUser;
     if (!u) return NO_ROLES;
+    // Verified in another tab after signing in: the sign-in token still says "not verified", and the database rules
+    // read the token. Get a fresh one so admin access works without signing out and in again.
+    if (u.emailVerified && !(await u.getIdTokenResult()).claims.email_verified) await u.getIdToken(true);
     const email = (u.email || "").toLowerCase(), verified = u.emailVerified && !!email;
     const [top, admin, mem, inv, adminInvite] = await Promise.all([
       verified ? sha256(email).then(h => h === TOP) : false,

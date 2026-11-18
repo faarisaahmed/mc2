@@ -110,7 +110,8 @@
       <div id="pane"></div>`);
     document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; setUrl(); draw(); });
     if (current && !current.inDb && !SITE_TABS.includes(tab)) return drawStart();
-    ({ applications: drawApplications, admins: drawAdmins, announcements: drawAnnouncements, events: drawEvents, times: drawTimes, signups: drawSignups, info: drawInfo, team: drawTeam }[tab] || drawStart)();
+    Promise.resolve(({ applications: drawApplications, admins: drawAdmins, announcements: drawAnnouncements, events: drawEvents, times: drawTimes, signups: drawSignups, info: drawInfo, team: drawTeam }[tab] || drawStart)())
+      .catch(ex => pane(`<div class="notice">${MH.icon("alert")}<span>Couldn't load this: ${e(MH_DB.friendly(ex).message)} Reload the page to try again.${ex && ex.code ? ` <span class="small muted">(${e(ex.code)})</span>` : ""}</span></div>`));
   }
   const SITE_TABS = ["applications", "admins"];   // about the whole site, not the mosque picked above
   function setUrl() { history.replaceState(null, "", `admin.html?m=${encodeURIComponent(current ? current.id : "")}&tab=${tab}`); }
