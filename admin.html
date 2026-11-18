@@ -176,24 +176,32 @@
     b.update(fs.doc(db, "applications", a.id), { status: "approved", mosqueId: id, reviewed: fs.serverTimestamp() });
     await b.commit();
     MH.toast(`${a.name} approved`);
-    inviteMessage(a.name, email, "owner");
+    inviteMessage(a.name, email, "owner", await emailInvite(email));
     await loadMosques(); drawApplications(); published();
   }
   // Invites aren't emailed automatically yet, so give the admin a message to send.
-  function inviteMessage(name, email, role) {
-    const link = new URL("account.html", location.href).href;
-    sendSheet(email, `Assalamu alaikum! You've been added as ${role === "owner" ? "an owner" : "an editor"} of ${name} on MasjidHub.\n\n1. Open ${link}\n2. Sign in or create an account with this email: ${email}\n3. Verify your email, then tap Accept on the invite.\n\nYou can then update iqamah times, events and announcements.`);
+  function inviteMessage(name, email, role, sent) {
+    sendSheet(email, `Assalamu alaikum! You've been added as ${role === "owner" ? "an owner" : "an editor"} of ${name} on MasjidHub.\n\n${steps(email)}\n\nYou can then update iqamah times, events and announcements.`, sent);
   }
-  function sendSheet(email, text) {
+  const steps = email => `1. Open the "Sign in to MasjidHub" email we sent to ${email} and tap the link. That signs you in; no password needed.\n   (No email? Open ${new URL("account.html", location.href).href} and sign in or create an account with ${email}.)\n2. Tap Accept on the invite.`;
+  // Emails the invitee a one-tap sign-in link (Firebase's "Sign in to MasjidHub" email). Works whether or not they
+  // have an account yet. Returns false if it couldn't be sent, so the admin knows to send the message themselves.
+  const emailInvite = email => MH_DB.sendInviteLink(email).then(() => true, () => false);
+  function sendSheet(email, text, sent) {
     const bd = document.createElement("div");
     bd.className = "sheet-backdrop open";
-    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="im-t"><h2 id="im-t">Let them know</h2>
-      <p class="muted">MasjidHub doesn't email invites yet. Send this to <strong>${e(email)}</strong>:</p>
+    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="im-t"><h2 id="im-t">${sent ? "Invite sent" : "Let them know"}</h2>
+      ${sent ? `<p class="muted">We emailed <strong>${e(email)}</strong> a sign-in link. The email only says "Sign in to MasjidHub", so it helps to send this note too, and to check their spam folder:</p>`
+        : sent === false ? `<p class="muted">We couldn't email <strong>${e(email)}</strong> automatically. Send them this:</p>`
+        : `<p class="muted">Send this to <strong>${e(email)}</strong>:</p>`}
       <textarea readonly style="min-height:200px">${e(text)}</textarea>
-      <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn" type="button" id="im-copy">Copy message</button><a class="btn ghost" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent("Your MasjidHub invite")}&body=${encodeURIComponent(text)}">Open in email</a><button class="btn ghost" type="button" id="im-x">Done</button></div></div>`;
+      <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn" type="button" id="im-copy">Copy message</button><a class="btn ghost" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent("Your MasjidHub invite")}&body=${encodeURIComponent(text)}">Open in email</a>${sent ? "" : `<button class="btn ghost" type="button" id="im-send">Email them a sign-in link</button>`}<button class="btn ghost" type="button" id="im-x">Done</button></div></div>`;
     document.body.appendChild(bd);
     bd.querySelector("#im-copy").onclick = () => navigator.clipboard.writeText(text).then(() => MH.toast("Copied"), () => MH.toast("Select the text and copy it"));
     bd.querySelector("#im-x").onclick = () => bd.remove();
+    if (bd.querySelector("#im-send")) bd.querySelector("#im-send").onclick = ev => busy(ev.currentTarget, async () => {
+      if (await emailInvite(email)) { MH.toast("Sign-in link sent"); ev.currentTarget.remove(); } else MH.toast("Couldn't send it. Send the message above instead.");
+    });
     bd.onclick = ev => { if (ev.target === bd) bd.remove(); };
   }
 
@@ -440,9 +448,8 @@
   const PERMS = [["mosques", "Manage every mosque", "Edit any mosque's times, events, announcements, info and team. Add and publish mosques."],
                  ["applications", "Review applications", "See and reject \"Add your mosque\" applications. Approving also needs \"Manage every mosque\"."]];
   const permList = p => PERMS.filter(([k]) => p && p[k]).map(x => x[1]).join(" · ") || "No permissions";
-  function adminInviteMessage(email, perms) {
-    const link = new URL("account.html", location.href).href;
-    sendSheet(email, `Assalamu alaikum! You've been invited to be a site admin on MasjidHub (${permList(perms)}).\n\n1. Open ${link}\n2. Sign in or create an account with this email: ${email}\n3. Verify your email, then tap Accept on the invite.`);
+  function adminInviteMessage(email, perms, sent) {
+    sendSheet(email, `Assalamu alaikum! You've been invited to be a site admin on MasjidHub (${permList(perms)}).\n\n${steps(email)}`, sent);
   }
   async function drawAdmins() {
     pane(`<p class="muted">Loading…</p>`);
@@ -461,7 +468,7 @@
       <form id="ainv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite a site admin</h3>
         <div class="field"><label for="ainv-e">Their email</label><input id="ainv-e" type="email" autocomplete="off"></div>
         <fieldset style="border:0;padding:0;margin:0 0 6px"><legend class="small" style="font-weight:600;margin-bottom:4px">What they can do</legend>${boxes("new", { mosques: true, applications: true })}</fieldset>
-        <p class="small muted">They see the invite on their Account page and can accept or decline it. You can change these later.</p>
+        <p class="small muted">We email them a sign-in link, even if they don't have an account yet. They then see the invite on their Account page and can accept or decline it. You can change these later.</p>
         <p class="small" id="ainv-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
         <button class="btn sm" type="submit">${MH.icon("plus")} Invite</button></form></div>`);
     const permsOf = (root, attr) => Object.fromEntries(PERMS.map(([k]) => [k, root.querySelector(`[data-${attr}="${k}"]`).checked]));
@@ -485,7 +492,7 @@
       if (admins.some(a => a.email === email)) return ($("ainv-err").textContent = "They're already a site admin. Change their permissions above.");
       busy(ev.submitter, async () => {
         await fs.setDoc(fs.doc(db, "adminInvites", email), { email, perms, invitedBy: me.uid, created: fs.serverTimestamp() });
-        adminInviteMessage(email, perms); drawAdmins();
+        adminInviteMessage(email, perms, await emailInvite(email)); drawAdmins();
       });
     };
   }
@@ -519,7 +526,7 @@
       if (members.some(x => x.email === email)) return ($("inv-err").textContent = "They're already on the team.");
       busy(ev.submitter, async () => {
         await fs.setDoc(ref("invites", email), { email, role, mosque: current.id, mosqueName: current.name, invitedBy: me.uid, created: fs.serverTimestamp() });
-        inviteMessage(current.name, email, role); drawTeam();
+        inviteMessage(current.name, email, role, await emailInvite(email)); drawTeam();
       });
     };
   }

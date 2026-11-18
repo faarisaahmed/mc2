@@ -43,6 +43,7 @@
 
   /* ---------- Signing in ---------- */
   const MESSAGES = {
+    "auth/operation-not-allowed": "That way of signing in isn't switched on yet. Please tell the MasjidHub team.",
     "auth/invalid-action-code": "This link has already been used or is out of date.",
     "auth/expired-action-code": "This link has expired.",
     "auth/invalid-credential": "That email and password don't match. Try again, or reset your password.",
@@ -65,6 +66,20 @@
     const provider = new au.GoogleAuthProvider();
     try { await au.signInWithPopup(auth, provider); }
     catch (e) { if (e.code === "auth/popup-blocked") return au.signInWithRedirect(auth, provider); throw e; }
+    await afterSignIn();
+  });
+  // Invites: Firebase emails a one-tap sign-in link to any address, account or not. Opening it on account.html
+  // signs them in (creating the account) with their email already verified. Needs "Email link (passwordless
+  // sign-in)" turned on under Email/Password in the Firebase console, and works only from the live site
+  // (the return address must be on the authorized domains list).
+  const sendInviteLink = wrap(async email => {
+    const { au, auth } = await load();
+    await au.sendSignInLinkToEmail(auth, email, { url: "https://faarisaahmed.github.io/mc2/account.html?invited=" + encodeURIComponent(email), handleCodeInApp: true });
+  });
+  const isInviteLink = async () => { const { au, auth } = await load(); return au.isSignInWithEmailLink(auth, location.href); };
+  const signInWithInvite = wrap(async email => {
+    const { au, auth } = await load();
+    await au.signInWithEmailLink(auth, email, location.href);
     await afterSignIn();
   });
   const signInEmail = wrap(async (email, password) => {
@@ -252,7 +267,7 @@
   }
 
   window.MH_DB = {
-    load, user, friendly, signInGoogle, signInEmail, createAccount, resendVerification, resetPassword, reloadUser, applyEmailCode, checkResetCode, finishReset,
+    load, user, friendly, sendInviteLink, isInviteLink, signInWithInvite, signInGoogle, signInEmail, createAccount, resendVerification, resetPassword, reloadUser, applyEmailCode, checkResetCode, finishReset,
     signOut, setName, deleteAccount, pushPrefs, refreshRsvps, toggleRsvp, roles, acceptInvite, declineInvite, acceptAdminInvite, declineAdminInvite, syncNow: afterSignIn,
     addApplication, withdrawApplication, SYNCED
   };

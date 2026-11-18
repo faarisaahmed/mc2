@@ -282,6 +282,40 @@
       : "On a computer: in Chrome or Edge, click the install icon at the end of the address bar.";
   }
 
+  /* ---------- Invite emails: a one-tap sign-in link (works with or without an account) ---------- */
+  function inviteLink() {
+    const q = new URLSearchParams(location.search);
+    if (q.get("mode") !== "signIn" || !q.get("oobCode")) return false;
+    const invited = (q.get("invited") || "").trim();
+    const go = email => MH_DB.signInWithInvite(email).then(() => {
+      history.replaceState(null, "", "account.html");
+      MH.toast("You're signed in. Your invite is below.");
+      drawSignedIn();
+    });
+    const ask = msg => {
+      $("who").innerHTML = `<div class="panel"><h2 class="panel-h">${MH.icon("shield")} You've been invited to MasjidHub</h2>
+        <p class="muted">Confirm the email address this invite was sent to, and we'll sign you in. No password needed.</p>
+        <form id="il" novalidate><div class="field"><label for="il-e">Email</label><input id="il-e" type="email" autocomplete="email" value="${e(invited)}"></div>
+        <p class="small" id="il-err" role="alert" style="color:var(--danger);min-height:1.2em">${e(msg || "")}</p>
+        <button class="btn" type="submit">Sign in</button></form></div>`;
+      $("il").onsubmit = ev => {
+        ev.preventDefault();
+        const email = $("il-e").value.trim();
+        if (!email) return ($("il-err").textContent = "Please add your email.");
+        ev.submitter.disabled = true;
+        go(email).catch(ex => { ev.submitter.disabled = false; $("il-err").textContent = ex.message; });
+      };
+    };
+    $("who").innerHTML = `<div class="panel"><p class="muted" style="margin:0">Signing you in…</p></div>`;
+    // The invite link carries the address it was sent to, so usually this is one tap. If that fails, ask.
+    MH_DB.isInviteLink().then(ok => {
+      if (!ok) { history.replaceState(null, "", "account.html"); drawWho(null); return MH.toast("That sign-in link isn't valid. Sign in below."); }
+      if (!invited) return ask();
+      go(invited).catch(ex => ask(ex.message + " If you already used this link, sign in from the Account page instead."));
+    }, () => ask());
+    return true;
+  }
+
   /* ---------- Links from our emails (verify email, reset password, undo an email change) ---------- */
   function emailLink() {
     const q = new URLSearchParams(location.search), m = q.get("mode"), code = q.get("oobCode");
@@ -327,7 +361,7 @@
     $("s-change").onclick = () => MH.openSettings();
     MH.onPrefs(drawSettings);
     if (!location.protocol.startsWith("http")) { $("who").innerHTML = `<div class="notice">${MH.icon("alert")}<span>Accounts need the site to be served over http(s).</span></div>`; return; }
-    if (emailLink()) return;
+    if (inviteLink() || emailLink()) return;
     if (!MH.store.get("account", null)) drawWho(null);   // draw the form at once; Firebase loads in the background
     MH_DB.user().then(u => {
       // Still signed out: keep the form that's already showing, so nothing the person typed is lost.
