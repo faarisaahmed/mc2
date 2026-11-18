@@ -74,7 +74,7 @@
   // (the return address must be on the authorized domains list).
   // true once the Cloud Functions in functions/ are deployed (Blaze plan): they send a branded invite email for every
   // new invite, so the site no longer sends Firebase's plain sign-in email itself. See functions/README.md.
-  const SERVER_EMAILS = false;
+  const SERVER_EMAILS = true;
   const sendInviteLink = wrap(async email => {
     const { au, auth } = await load();
     await au.sendSignInLinkToEmail(auth, email, { url: "https://faarisaahmed.github.io/mc2/account.html?invited=" + encodeURIComponent(email), handleCodeInApp: true });

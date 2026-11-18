@@ -187,6 +187,10 @@
   // Emails the invitee a one-tap sign-in link (Firebase's "Sign in to MasjidHub" email). Works whether or not they
   // have an account yet. Returns false if it couldn't be sent, so the admin knows to send the message themselves.
   // With server emails on (functions/), the invite email goes out by itself when the invite is saved.
+  // Resend: with server emails, touching the invite's "created" time makes the server email it again.
+  const resend = (docRef, email) => MH_DB.SERVER_EMAILS
+    ? fs.setDoc(docRef, { created: fs.serverTimestamp() }, { merge: true }).then(() => true, () => false)
+    : emailInvite(email).then(r => r === true);
   const emailInvite = email => MH_DB.SERVER_EMAILS ? Promise.resolve("server") : MH_DB.sendInviteLink(email).then(() => true, () => false);
   function sendSheet(email, text, sent) {
     const bd = document.createElement("div");
@@ -465,8 +469,8 @@
           <fieldset style="border:0;padding:0;margin:8px 0 0"><legend class="sr-only">Permissions for ${e(a.email)}</legend>${boxes("perm", a.perms)}</fieldset></div>
         <div class="acts"><button class="btn sm danger" type="button" data-rm-admin="${e(a.uid)}">Remove</button></div></div>`).join("")}
       ${admins.length ? "" : `<p class="muted">No other site admins yet.</p>`}
-      ${invites.length ? `<h3 style="margin:18px 0 4px">Invited, not accepted yet</h3>${invites.map(i => `<div class="list-row"><div><strong style="overflow-wrap:anywhere">${e(i.email)}</strong><div class="small muted">${permList(i.perms)}</div></div>
-        <div class="acts"><button class="btn sm ghost" type="button" data-amsg="${e(i.email)}">Show message</button><button class="btn sm danger" type="button" data-acancel="${e(i.email)}">Cancel</button></div></div>`).join("")}` : ""}
+      ${invites.length ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 4px"><h3 style="margin:0">Invited, not accepted yet</h3>${invites.length > 1 ? `<button class="btn sm ghost" type="button" id="a-all">Email them all again</button>` : ""}</div>${invites.map(i => `<div class="list-row"><div><strong style="overflow-wrap:anywhere">${e(i.email)}</strong><div class="small muted">${permList(i.perms)}</div></div>
+        <div class="acts"><button class="btn sm ghost" type="button" data-aresend="${e(i.email)}">Resend email</button><button class="btn sm ghost" type="button" data-amsg="${e(i.email)}">Show message</button><button class="btn sm danger" type="button" data-acancel="${e(i.email)}">Cancel</button></div></div>`).join("")}` : ""}
       <form id="ainv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite a site admin</h3>
         <div class="field"><label for="ainv-e">Their email</label><input id="ainv-e" type="email" autocomplete="off"></div>
         <fieldset style="border:0;padding:0;margin:0 0 6px"><legend class="small" style="font-weight:600;margin-bottom:4px">What they can do</legend>${boxes("new", { mosques: true, applications: true })}</fieldset>
@@ -485,6 +489,16 @@
       if (confirm(`Remove ${a.email} as a site admin? Their account stays; they just lose admin access.`)) busy(b, async () => { await fs.deleteDoc(fs.doc(db, "admins", a.uid)); drawAdmins(); });
     });
     $("pane").querySelectorAll("[data-acancel]").forEach(b => b.onclick = () => busy(b, async () => { await fs.deleteDoc(fs.doc(db, "adminInvites", b.dataset.acancel)); drawAdmins(); }));
+    $("pane").querySelectorAll("[data-aresend]").forEach(b => b.onclick = () => busy(b, async () => {
+      MH.toast(await resend(fs.doc(db, "adminInvites", b.dataset.aresend), b.dataset.aresend) ? "Invite email sent again" : "Couldn't send it. Use Show message instead.");
+    }));
+    if ($("a-all")) $("a-all").onclick = ev => {
+      if (!confirm(`Email all ${invites.length} people their invite again?`)) return;
+      busy(ev.currentTarget, async () => {
+        const ok = (await Promise.all(invites.map(i => resend(fs.doc(db, "adminInvites", i.email), i.email)))).filter(Boolean).length;
+        MH.toast(ok === invites.length ? `Sent to all ${ok}` : `Sent ${ok} of ${invites.length}. Use Show message for the rest.`);
+      });
+    };
     $("pane").querySelectorAll("[data-amsg]").forEach(b => b.onclick = () => { const i = invites.find(z => z.email === b.dataset.amsg); adminInviteMessage(i.email, i.perms); });
     $("ainv").onsubmit = ev => {
       ev.preventDefault();
@@ -508,7 +522,7 @@
       ${members.map(x => `<div class="list-row"><div><strong>${e(x.name || x.email)}</strong>${x.uid === me.uid ? " (you)" : ""}<div class="small muted">${e(x.email || "")} · ${x.role === "owner" ? "Owner" : "Editor"}</div></div>
         ${x.uid === me.uid ? "" : `<div class="acts"><button class="btn sm ghost" type="button" data-role="${x.uid}">Make ${x.role === "owner" ? "editor" : "owner"}</button><button class="btn sm danger" type="button" data-rm="${x.uid}">Remove</button></div>`}</div>`).join("") || `<p class="muted">No team members yet.</p>`}
       ${invites.length ? `<h3 style="margin:18px 0 4px">Invited, not joined yet</h3>${invites.map(i => `<div class="list-row"><div><strong>${e(i.email)}</strong><div class="small muted">${i.role === "owner" ? "Owner" : "Editor"}</div></div>
-        <div class="acts"><button class="btn sm ghost" type="button" data-msg="${e(i.email)}">Show message</button><button class="btn sm danger" type="button" data-cancel="${e(i.email)}">Cancel</button></div></div>`).join("")}` : ""}
+        <div class="acts"><button class="btn sm ghost" type="button" data-resend="${e(i.email)}">Resend email</button><button class="btn sm ghost" type="button" data-msg="${e(i.email)}">Show message</button><button class="btn sm danger" type="button" data-cancel="${e(i.email)}">Cancel</button></div></div>`).join("")}` : ""}
       <form id="inv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite someone</h3>
         <div class="row"><div class="field"><label for="inv-e">Their email</label><input id="inv-e" type="email" autocomplete="off"></div>
           <div class="field"><label for="inv-r">Role</label><select id="inv-r"><option value="editor">Editor</option><option value="owner">Owner</option></select></div></div>
@@ -520,6 +534,9 @@
     }));
     $("pane").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { if (confirm("Remove this person from the team?")) busy(b, async () => { await fs.deleteDoc(ref("members", b.dataset.rm)); drawTeam(); }); });
     $("pane").querySelectorAll("[data-cancel]").forEach(b => b.onclick = () => busy(b, async () => { await fs.deleteDoc(ref("invites", b.dataset.cancel)); drawTeam(); }));
+    $("pane").querySelectorAll("[data-resend]").forEach(b => b.onclick = () => busy(b, async () => {
+      MH.toast(await resend(ref("invites", b.dataset.resend), b.dataset.resend) ? "Invite email sent again" : "Couldn't send it. Use Show message instead.");
+    }));
     $("pane").querySelectorAll("[data-msg]").forEach(b => b.onclick = () => { const i = invites.find(z => z.email === b.dataset.msg); inviteMessage(current.name, i.email, i.role); });
     $("inv").onsubmit = ev => {
       ev.preventDefault();

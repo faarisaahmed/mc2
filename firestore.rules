@@ -121,7 +121,8 @@ service cloud.firestore {
           && request.resource.data.mosque == m
           && request.resource.data.role in ["owner", "editor"];
         allow delete: if isOwner(m) || (verified() && email == myEmail());
-        allow update: if false;
+        // "Resend email" in the dashboard: only the time changes, which makes the server send the invite again.
+        allow update: if isOwner(m) && changed().hasOnly(["created"]);
       }
 
       match /events/{e} {
