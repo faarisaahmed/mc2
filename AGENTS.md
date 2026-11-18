@@ -12,6 +12,8 @@ a mosque map, and donations.
 - Plain **HTML, CSS, and vanilla JavaScript**. No framework, no bundler, no `npm`, no build step.
 - This is the team's repo: faarisaahmed/mc2. "The owner" means Faaris, who reviews and merges.
 - The site is **GitHub Pages** from the repo root of `main`: https://faarisaahmed.github.io/mc2/ updates when `main` changes.
+  The same `main` also publishes to **Cloudflare Pages** at https://masjid-hub.pages.dev (no build step). Keep links relative
+  so both work: one is served from `/mc2/`, the other from `/`. Both hostnames are listed in `LIVE_HOSTS` in `assets/js/db.js`.
 
 ## Run and check
 

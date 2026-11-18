@@ -68,6 +68,10 @@
     catch (e) { if (e.code === "auth/popup-blocked") return au.signInWithRedirect(auth, provider); throw e; }
     await afterSignIn();
   });
+  // Where the site is published. Links in emails must point at one of these (each is on Firebase's authorized
+  // domains list); from anywhere else (localhost, a fork) they point at the main GitHub Pages copy.
+  const LIVE_HOSTS = ["faarisaahmed.github.io", "masjid-hub.pages.dev"];
+  const siteUrl = path => (LIVE_HOSTS.includes(location.hostname) ? new URL(path, location.href) : new URL(path, "https://faarisaahmed.github.io/mc2/")).href;
   // Invites: Firebase emails a one-tap sign-in link to any address, account or not. Opening it on account.html
   // signs them in (creating the account) with their email already verified. Needs "Email link (passwordless
   // sign-in)" turned on under Email/Password in the Firebase console, and works only from the live site
@@ -77,7 +81,7 @@
   const SERVER_EMAILS = true;
   const sendInviteLink = wrap(async email => {
     const { au, auth } = await load();
-    await au.sendSignInLinkToEmail(auth, email, { url: "https://faarisaahmed.github.io/mc2/account.html?invited=" + encodeURIComponent(email), handleCodeInApp: true });
+    await au.sendSignInLinkToEmail(auth, email, { url: siteUrl("account.html?invited=" + encodeURIComponent(email)), handleCodeInApp: true });
   });
   const isInviteLink = async () => { const { au, auth } = await load(); return au.isSignInWithEmailLink(auth, location.href); };
   const signInWithInvite = wrap(async email => {
@@ -100,7 +104,7 @@
   });
   // After using a link in our emails, Firebase's page offers a "Continue" button back to the Account page.
   // Only on the live site: other hosts (localhost, forks) aren't on Firebase's authorized domains list, which would make sending fail.
-  const backHere = () => location.hostname === "faarisaahmed.github.io" ? { url: new URL("account.html", location.href).href } : undefined;
+  const backHere = () => LIVE_HOSTS.includes(location.hostname) ? { url: new URL("account.html", location.href).href } : undefined;
   const resendVerification = wrap(async () => { const { au, auth } = await load(); await au.sendEmailVerification(auth.currentUser, backHere()); });
   const resetPassword = wrap(async email => { const { au, auth } = await load(); await au.sendPasswordResetEmail(auth, email, backHere()); });
   // Links in Firebase's emails (verify, reset password, undo an email change) open account.html?mode=...&oobCode=...
