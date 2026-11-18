@@ -522,6 +522,14 @@ details.more[open] summary::before{content:"– "}
 .link-acts button.danger{color:var(--danger)}
 .link-acts button:hover,.link-btn:hover{text-decoration:underline}
 .link-acts button:disabled{opacity:.5;cursor:default}
+.pending{margin-top:18px;border-top:1px solid var(--line)}
+.pending>summary{display:flex;align-items:center;gap:8px;min-height:48px;cursor:pointer;font-weight:700;font-size:1.05rem;list-style:none}
+.pending>summary::-webkit-details-marker{display:none}
+.pending>summary::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-inline-start:4px;transition:transform .15s}
+.pending[open]>summary::after{transform:rotate(45deg)}
+@media (prefers-reduced-motion:reduce){.pending>summary::after{transition:none}}
+[dir=rtl] .pending>summary::after{transform:rotate(135deg)}
+[dir=rtl] .pending[open]>summary::after{transform:rotate(45deg)}
 .verify{display:flex;gap:14px;align-items:flex-start;margin-top:16px;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--gold) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold) 35%,transparent)}
 .verify-ic{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--gold);color:var(--green-deep)}
 @media (max-width:420px){.setting-row{flex-wrap:wrap}.setting-row .btn{width:100%}.setting-row .acts{width:100%}.setting-row .acts .btn{width:auto;flex:1}}
