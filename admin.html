@@ -344,6 +344,9 @@
     if (failed.length) messageFor(failed[0], false);
   }
   // The pending-invites list, folded away so it doesn't crowd the page.
+  // "More" menus on each person: only one open at a time; a click elsewhere or Escape closes it.
+  document.addEventListener("click", ev => document.querySelectorAll(".row-menu[open]").forEach(m => { if (!m.contains(ev.target) || ev.target.closest(".menu button")) m.open = false; }));
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape") document.querySelectorAll(".row-menu[open]").forEach(m => { m.open = false; m.querySelector("summary").focus(); }); });
   const pendingBox = (title, count, extra, rows) => count ? `<details class="pending"><summary>${title} (${count})</summary>${extra}${rows}</details>` : "";
 
   function sendSheet(email, text, sent) {
@@ -615,19 +618,25 @@
     pane(`<p class="muted">Loading…</p>`);
     const [as, is] = await Promise.all([fs.getDocs(fs.collection(db, "admins")), fs.getDocs(fs.collection(db, "adminInvites"))]);
     const admins = as.docs.map(d => Object.assign({ uid: d.id }, d.data())), invites = is.docs.map(d => d.data());
+    const initial = x => (x || "?").trim()[0].toUpperCase();
+    const chips = (p, who) => `<div class="perm-chips">${PERMS.map(([k, t]) => `<button type="button" class="chip" data-chip="${k}" aria-pressed="${!!(p && p[k])}" aria-label="${e(t)} for ${e(who)}">${k === "mosques" ? "Mosques" : "Applications"}</button>`).join("")}</div>`;
+    const rowMenu = (who, items) => `<details class="row-menu"><summary aria-label="More for ${e(who)}">${MH.icon("more")}</summary><div class="menu">${items}</div></details>`;
     const boxes = (prefix, p) => PERMS.map(([k, t, d]) => `<label class="check"><input type="checkbox" data-${prefix}="${k}"${p && p[k] ? " checked" : ""}> <span><strong>${t}</strong><span class="small muted" style="display:block">${d}</span></span></label>`).join("");
     pane(`<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Site admins</h2>
       <p class="small muted">Site admins help run MasjidHub as a whole. Each mosque's own staff go in that mosque's Team tab instead. Only you, the top admin, can see this page.</p>
-      <div class="list-row"><div><strong>${e(me.displayName || me.email)}</strong> (you)<div class="small muted" style="overflow-wrap:anywhere">${me.displayName ? e(me.email) + " · " : ""}Top admin: everything</div></div></div>
-      <h3 style="margin:18px 0 4px">Site admins (${admins.length + 1})</h3>
-      ${admins.map(a => `<div class="list-row" data-admin="${e(a.uid)}"><div style="flex:1;min-width:0"><strong style="overflow-wrap:anywhere">${e(a.name || a.email)}</strong>${a.name ? `<div class="small muted" style="overflow-wrap:anywhere">${e(a.email)}</div>` : ""}
-          <div class="small" style="margin-top:4px"><span class="muted">Can:</span> <span data-can>${e(permList(a.perms))}</span>${shortDate(a.added) ? `<span class="muted"> · joined ${e(shortDate(a.added))}</span>` : ""}</div>
-          <details class="pending" style="margin-top:6px;border-top:0"><summary class="small" style="min-height:44px;font-size:.92rem">Change what they can do</summary>
-          <fieldset style="border:0;padding:0;margin:4px 0 0"><legend class="sr-only">Permissions for ${e(a.email)}</legend>${boxes("perm", a.perms)}</fieldset></details></div>
-        <div class="acts"><button class="btn sm danger" type="button" data-rm-admin="${e(a.uid)}">Remove</button></div></div>`).join("")}
-      ${admins.length ? "" : `<p class="muted">Nobody has accepted an invite yet.</p>`}
-      ${pendingBox("Invited, not accepted yet", invites.length, invites.length > 1 ? `<p style="margin:4px 0 0"><button class="link-btn" type="button" id="a-all">Email them all again</button></p>` : "", `${invites.map(i => `<div class="list-row"><div><strong style="overflow-wrap:anywhere">${e(i.email)}</strong><div class="small muted">${permList(i.perms)}${shortDate(i.created) ? ` · invited ${e(shortDate(i.created))}` : ""}</div>
-        <div class="link-acts"><button type="button" data-aresend="${e(i.email)}">Resend email</button><button type="button" data-amsg="${e(i.email)}">Show message</button><button type="button" class="danger" data-acancel="${e(i.email)}">Cancel invite</button></div></div></div>`).join("")}`)}
+      <p class="small muted" style="margin:0 0 4px"><strong>Mosques:</strong> edit any mosque and add new ones. <strong>Applications:</strong> review requests to add a mosque. Tap one to turn it on or off.</p>
+      <h3 style="margin:18px 0 0">Site admins (${admins.length + 1})</h3>
+      <div class="person"><span class="av" aria-hidden="true">${e(initial(me.displayName || me.email))}</span>
+        <div class="who"><strong>${e(me.displayName || me.email)} (you)</strong><span class="small muted">${me.displayName ? e(me.email) : ""}<span style="white-space:nowrap">${me.displayName ? " · " : ""}top admin</span></span></div>
+        <div class="perm-chips"><span class="pill">Everything</span></div></div>
+      ${admins.map(a => `<div class="person" data-admin="${e(a.uid)}"><span class="av" aria-hidden="true">${e(initial(a.name || a.email))}</span>
+        <div class="who"><strong>${e(a.name || a.email)}</strong><span class="small muted">${a.name ? e(a.email) : ""}${shortDate(a.added) ? `<span style="white-space:nowrap">${a.name ? " · " : ""}joined ${e(shortDate(a.added))}</span>` : ""}</span></div>
+        ${chips(a.perms, a.name || a.email)}
+        ${rowMenu(a.name || a.email, `<button type="button" class="danger" data-rm-admin="${e(a.uid)}">Remove as admin</button>`)}</div>`).join("")}
+      ${pendingBox("Invited, not accepted yet", invites.length, invites.length > 1 ? `<p style="margin:4px 0 0"><button class="link-btn" type="button" id="a-all">Email them all again</button></p>` : "", invites.map(i => `<div class="person invited" data-invite="${e(i.email)}"><span class="av" aria-hidden="true">${e(initial(i.email))}</span>
+        <div class="who"><strong>${e(i.email)}</strong><span class="small muted">${shortDate(i.created) ? "invited " + e(shortDate(i.created)) : "invited"}</span></div>
+        ${chips(i.perms, i.email)}
+        ${rowMenu(i.email, `<button type="button" data-aresend="${e(i.email)}">Resend email</button><button type="button" data-amsg="${e(i.email)}">Show message</button><button type="button" class="danger" data-acancel="${e(i.email)}">Cancel invite</button>`)}</div>`).join(""))}
       <form id="ainv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite site admins</h3>
         <div class="field"><label for="ainv-e">Emails</label><textarea id="ainv-e" rows="3" autocomplete="off" spellcheck="false" placeholder="one@example.com, two@example.com" aria-describedby="ainv-h"></textarea>
           <p class="small muted" id="ainv-h" style="margin:6px 0 0">One person or many: paste a list, one per line or separated by commas.</p></div>
@@ -636,12 +645,18 @@
         <p class="small" id="ainv-err" role="alert" style="color:var(--danger);min-height:1.2em"></p>
         <button class="btn sm" type="submit">${MH.icon("plus")} Invite</button></form></div>`);
     const permsOf = (root, attr) => Object.fromEntries(PERMS.map(([k]) => [k, root.querySelector(`[data-${attr}="${k}"]`).checked]));
-    $("pane").querySelectorAll("[data-admin]").forEach(row => row.querySelectorAll("[data-perm]").forEach(cb => cb.onchange = async () => {
-      cb.disabled = true;
-      try { const perms = permsOf(row, "perm"); await fs.updateDoc(fs.doc(db, "admins", row.dataset.admin), { perms, updated: fs.serverTimestamp() }); row.querySelector("[data-can]").textContent = permList(perms); MH.toast("Permissions saved"); }
-      catch (ex) { cb.checked = !cb.checked; fail(ex); }
-      finally { cb.disabled = false; }
-    }));
+    // Permission chips: tap to turn on or off, for admins and for pending invites alike.
+    $("pane").querySelectorAll(".person [data-chip]").forEach(c => c.onclick = async () => {
+      const row = c.closest(".person"), was = c.getAttribute("aria-pressed") === "true";
+      c.setAttribute("aria-pressed", !was); c.disabled = true;
+      const perms = Object.fromEntries([...row.querySelectorAll("[data-chip]")].map(x => [x.dataset.chip, x.getAttribute("aria-pressed") === "true"]));
+      try {
+        if (row.dataset.admin) await fs.updateDoc(fs.doc(db, "admins", row.dataset.admin), { perms, updated: fs.serverTimestamp() });
+        else await fs.updateDoc(fs.doc(db, "adminInvites", row.dataset.invite), { perms });
+        MH.toast("Saved");
+      } catch (ex) { c.setAttribute("aria-pressed", was); fail(ex); }
+      finally { c.disabled = false; }
+    });
     $("pane").querySelectorAll("[data-rm-admin]").forEach(b => b.onclick = () => {
       const a = admins.find(x => x.uid === b.dataset.rmAdmin);
       if (confirm(`Remove ${a.email} as a site admin? Their account stays; they just lose admin access.`)) busy(b, async () => { await fs.deleteDoc(fs.doc(db, "admins", a.uid)); drawAdmins(); });

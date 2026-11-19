@@ -597,3 +597,24 @@ details.more[open] summary::before{content:"– "}
 .legal-doc p,.legal-doc li{line-height:1.6}
 .legal-doc ul{padding-inline-start:22px}
 .nav-tag{font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:980px;background:var(--soft-gold);color:var(--soft-gold-ink);margin-inline-start:4px}
+
+/* Dashboard people lists: one compact row per person, permission chips, and a "more" menu */
+.person{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-areas:"av who chips menu";align-items:center;gap:6px 12px;padding:12px 0;border-top:1px solid var(--line)}
+.person .av{grid-area:av;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--soft-green);color:var(--soft-green-ink)}
+.person.invited .av{background:transparent;border:1.5px dashed var(--line);color:var(--muted)}
+.person .who{grid-area:who;min-width:0}
+.person .who strong{display:block;overflow-wrap:anywhere}
+.person .who .small{display:block;overflow-wrap:anywhere}
+.perm-chips{grid-area:chips;display:flex;gap:6px;flex-wrap:wrap}
+.perm-chips .chip{padding:6px 12px;font-size:.88rem}
+.row-menu{grid-area:menu;position:relative}
+.row-menu>summary{list-style:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.row-menu>summary::-webkit-details-marker{display:none}
+.row-menu>summary:hover,.row-menu[open]>summary{background:var(--seg);color:var(--ink)}
+.row-menu .menu{position:absolute;inset-inline-end:0;top:calc(100% + 4px);z-index:20;min-width:190px;padding:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.row-menu .menu button{display:block;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;text-align:start;cursor:pointer}
+.row-menu .menu button:hover,.row-menu .menu button:focus-visible{background:var(--seg)}
+.row-menu .menu button.danger{color:var(--danger)}
+@media (max-width:640px){
+  .person{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"av who menu" ". chips chips"}
+}
