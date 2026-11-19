@@ -149,7 +149,7 @@
     MH.store.set("prefs-synced", Date.now());
   }
   function notifySettings() {
-    return { prayers: MH.store.get("notify-prayers", ["fajr", "dhuhr", "asr", "maghrib", "isha"]), before: MH.store.get("notify-before", 0), announcements: MH.store.get("notify-ann", false) };
+    return { prayers: MH.store.get("notify-prayers", ["fajr", "dhuhr", "asr", "maghrib", "isha"]), before: MH.store.get("notify-before", 0), announcements: MH.store.get("notify-ann", false), emailEvents: MH.store.get("notify-email-events", true) };
   }
   // On sign-in: use the settings saved in the account if there are any, otherwise save this device's.
   async function afterSignIn() {
@@ -164,6 +164,7 @@
         if (cloud.notify.prayers) MH.store.set("notify-prayers", cloud.notify.prayers);
         if (cloud.notify.before != null) MH.store.set("notify-before", cloud.notify.before);
         if (cloud.notify.announcements != null) MH.store.set("notify-ann", cloud.notify.announcements);
+        if (cloud.notify.emailEvents != null) MH.store.set("notify-email-events", cloud.notify.emailEvents);
       }
       MH.store.set("prefs-synced", Date.now());
     } else {

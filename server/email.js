@@ -77,4 +77,21 @@ function inviteEmail({ kind, inviter, mosqueName, role, perms, link, email }) {
   return { subject, html, text };
 }
 
-module.exports = { inviteEmail, applicationEmail };
+// The evening before: one email listing every event this person signed up for tomorrow.
+// items: [{ title, when, place, mosqueName, kind: "going" | "volunteer" }]
+function reminderEmail({ name, items, accountUrl }) {
+  const first = name ? " " + esc(name.split(" ")[0]) : "";
+  const subject = items.length === 1 ? `Tomorrow: ${items[0].title}` : `Tomorrow: ${items.length} events you signed up for`;
+  const rows = items.map(i => `<div style="margin:0 0 12px;padding:14px 16px;border-radius:12px;background:${BG}">
+    <div style="font-size:16px;font-weight:700;line-height:1.4">${esc(i.title)}</div>
+    <div style="font-size:15px;line-height:1.6;color:${MUTED}">${esc(i.when)}${i.place ? " · " + esc(i.place) : ""}</div>
+    <div style="font-size:15px;line-height:1.6;color:${MUTED}">${esc(i.mosqueName)}${i.kind === "volunteer" ? " · you're volunteering" : ""}</div></div>`).join("");
+  const body = para(`Assalamu alaikum${first},`) + para(items.length === 1 ? "A reminder about tomorrow:" : "A reminder about tomorrow's events:") + rows
+    + para("Plans changed? Cancel from the event's page so the mosque knows.", true);
+  const footer = `You're getting this because you signed up on MasjidHub. <a href="${esc(accountUrl)}" style="color:${MUTED}">Turn off event reminder emails</a> on your Account page.`;
+  const text = `Assalamu alaikum${name ? " " + name.split(" ")[0] : ""},\n\nA reminder about tomorrow:\n\n` + items.map(i => `${i.title}\n${i.when}${i.place ? " · " + i.place : ""}\n${i.mosqueName}${i.kind === "volunteer" ? " (volunteering)" : ""}`).join("\n\n")
+    + `\n\nPlans changed? Cancel from the event's page so the mosque knows.\nTurn off these emails: ${accountUrl}`;
+  return { subject, html: frame("Event reminder", body, footer), text };
+}
+
+module.exports = { inviteEmail, applicationEmail, reminderEmail };

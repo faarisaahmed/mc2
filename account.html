@@ -35,7 +35,7 @@
 
       <div class="panel" id="notifications">
         <h2 class="panel-h">${bell} Notifications</h2>
-        <p class="small muted" style="margin:0 0 14px">Reminders work while MasjidHub is open, or installed as an app and running in the background. They're saved on this device.</p>
+        <p class="small muted" style="margin:0 0 14px">Adhan reminders work while MasjidHub is open, or installed as an app and running in the background. They're saved on this device.</p>
         <div class="setting-row">
           <div><strong>Adhan reminders</strong><div class="small muted" id="n-status"></div></div>
           <button class="btn sm" id="n-toggle" type="button" aria-pressed="false">Turn on</button>
@@ -51,6 +51,10 @@
             <div><strong>Urgent mosque announcements</strong><div class="small muted">Janazah and closure notices from your mosque, shown when MasjidHub opens.</div></div>
             <button class="btn sm ghost" id="n-ann" type="button" aria-pressed="false">Off</button>
           </div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Event reminders by email</strong><div class="small muted">The evening before an event you signed up for or are volunteering at. Needs an account.</div></div>
+          <button class="btn sm" id="n-evmail" type="button" aria-pressed="true">On</button>
         </div>
       </div>
 
@@ -261,6 +265,8 @@
     $("n-prayers").innerHTML = ALL.map(id => { const p = MH.PRAYERS.find(x => x.id === id); return `<button type="button" class="chip" data-p="${id}" aria-pressed="${which.includes(id)}">${p.t}</button>`; }).join("");
     document.querySelectorAll("#n-when button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.v === before));
     const ann = MH.store.get("notify-ann", false);
+    const evm = MH.store.get("notify-email-events", true);
+    $("n-evmail").textContent = evm ? "On" : "Off"; $("n-evmail").setAttribute("aria-pressed", evm); $("n-evmail").classList.toggle("ghost", !evm);
     $("n-ann").textContent = ann ? "On" : "Off"; $("n-ann").setAttribute("aria-pressed", ann); $("n-ann").classList.toggle("ghost", !ann);
   }
   const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -281,6 +287,10 @@
       MH.store.set("notify-prayers", which); drawNotify(); saved();
     };
     document.querySelectorAll("#n-when button").forEach(b => b.onclick = () => { MH.store.set("notify-before", +b.dataset.v); drawNotify(); saved(); });
+    $("n-evmail").onclick = () => {
+      const to = !MH.store.get("notify-email-events", true); MH.store.set("notify-email-events", to); drawNotify(); saved();
+      MH.toast(to ? "We'll email you the evening before your events." : "Event reminder emails are off.");
+    };
     $("n-ann").onclick = () => { MH.store.set("notify-ann", !MH.store.get("notify-ann", false)); drawNotify(); saved(); };
   }
 

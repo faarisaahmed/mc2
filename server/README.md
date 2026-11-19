@@ -10,6 +10,7 @@ Written, tested locally, and **not deployed**. Cloud Functions need the Firebase
 |---|---|---|
 | `emailAdminInvite` | The top admin invites a site admin (`adminInvites/{email}`) | Emails a MasjidHub-branded invite with a one-tap "Accept the invite" button |
 | `emailApplicationUpdate` | A reviewer asks an "Add your mosque" applicant for more info, or declines | Emails the applicant the reviewer's note; replies go to the sending inbox |
+| `emailEventReminders` | Every day at 6 PM New York time (Cloud Scheduler) | Emails each person the events they signed up for or volunteer at tomorrow, one email each. Skipped for people who turned off "Event reminders by email" on the Account page. Needs the `rsvps.date` index in `firestore.indexes.json` |
 | `emailMosqueInvite` | Someone is invited to a mosque team (`mosques/{m}/invites/{email}`), including the owner invite when an application is approved | Same, naming the mosque and the role |
 
 The button is a Firebase email sign-in link: it signs the person in (creating their account if needed, with the email

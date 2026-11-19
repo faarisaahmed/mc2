@@ -5,13 +5,14 @@
    mosque team invites (mosques/{m}/invites/{email}), including the owner invite made when an application is approved.
    The site stops sending Firebase's plain "Sign in to MasjidHub" email once SERVER_EMAILS is true in assets/js/db.js. */
 const { onDocumentWritten, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 const nodemailer = require("nodemailer");
-const { inviteEmail, applicationEmail } = require("./email");
+const { inviteEmail, applicationEmail, reminderEmail } = require("./email");
 
 initializeApp();
 const SITE = "https://faarisaahmed.github.io/mc2/";
@@ -81,4 +82,52 @@ exports.emailApplicationUpdate = onDocumentUpdated({ document: "applications/{id
   if (before.status === after.status && before.note === after.note) return;
   await send(after.email, applicationEmail({ status: after.status, mosqueName: after.name, contact: after.contact, note: after.note }));
   logger.info("Sent application update", { status: after.status });
+});
+
+/* Event reminders: every evening at 6 PM (New York time, where every mosque is today), email each person
+   the events they signed up for or volunteer at tomorrow. One email per person, however many events.
+   People turn this off on their Account page (users/{uid}.notify.emailEvents == false). */
+const PRAYER_NAMES = { fajr: "Fajr", dhuhr: "Dhuhr", asr: "Asr", maghrib: "Maghrib", isha: "Isha" };
+function twelveHour(hm) {
+  const [h, m] = hm.split(":").map(Number);
+  return `${(h % 12) || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+function whenText(ev) {
+  if (ev.start) return "Tomorrow, " + twelveHour(ev.start) + (ev.end ? " to " + twelveHour(ev.end) : "");
+  if (ev.after) return `Tomorrow, after ${PRAYER_NAMES[ev.after] || ev.after}`;
+  return "Tomorrow";
+}
+function tomorrowIn(timeZone) {
+  const d = new Date(Date.now() + 24 * 3600 * 1000);
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+exports.emailEventReminders = onSchedule({ schedule: "0 18 * * *", timeZone: "America/New_York", ...opts }, async () => {
+  const fs = getFirestore(), date = tomorrowIn("America/New_York");
+  const snap = await fs.collectionGroup("rsvps").where("date", "==", date).get();
+  if (snap.empty) return logger.info("No event reminders to send", { date });
+  const byUser = new Map(), events = new Map(), mosques = new Map();
+  const cached = (map, path) => { if (!map.has(path)) map.set(path, fs.doc(path).get()); return map.get(path); };
+  for (const r of snap.docs) {
+    const d = r.data();
+    const ev = await cached(events, `mosques/${d.mosque}/events/${d.event}`);
+    if (!ev.exists) continue;   // the event was deleted
+    const m = await cached(mosques, `mosques/${d.mosque}`);
+    const e = ev.data();
+    if (!byUser.has(d.uid)) byUser.set(d.uid, []);
+    byUser.get(d.uid).push({ title: e.title || d.title || "Event", when: whenText(e), place: e.place || "", mosqueName: (m.exists && m.data().name) || "", kind: d.kind, sort: e.start || "99" });
+  }
+  let sent = 0;
+  for (const [uid, items] of byUser) {
+    try {
+      const prefs = await fs.doc("users/" + uid).get();
+      if (prefs.exists && prefs.get("notify.emailEvents") === false) continue;
+      const u = await getAuth().getUser(uid);
+      if (!u.email) continue;
+      items.sort((a, b) => a.sort.localeCompare(b.sort));
+      await send(u.email, reminderEmail({ name: u.displayName || "", items, accountUrl: SITE + "account.html" }));
+      sent++;
+    } catch (e) { logger.warn("Reminder not sent", { error: e.message }); }
+  }
+  logger.info("Sent event reminders", { date, sent });
 });
