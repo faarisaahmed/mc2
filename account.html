@@ -308,9 +308,16 @@
     const q = new URLSearchParams(location.search);
     if (q.get("mode") !== "signIn" || !q.get("oobCode")) return false;
     const invited = (q.get("invited") || "").trim();
-    const go = email => MH_DB.signInWithInvite(email).then(() => {
+    // Tapping "Accept the invite" in the email is the acceptance: sign in, then accept every invite sent to this address.
+    const go = email => MH_DB.signInWithInvite(email).then(async () => {
       history.replaceState(null, "", "account.html");
-      MH.toast("You're signed in. Your invite is below.");
+      const done = [];
+      try {
+        const r = await MH_DB.roles();
+        if (r.adminInvite) { await MH_DB.acceptAdminInvite(r.adminInvite); done.push("a site admin"); }
+        for (const i of r.invites) { await MH_DB.acceptInvite(i); done.push(`on the team for ${i.mosqueName || mosqueName(i.mosque)}`); }
+      } catch (ex) { MH.toast("You're signed in, but we couldn't accept the invite: " + ex.message + " Try the Accept button below."); drawSignedIn(); return; }
+      MH.toast(done.length ? `Welcome. You're now ${done.join(" and ")}.` : "You're signed in. That invite was already used or cancelled.");
       drawSignedIn();
     });
     const ask = msg => {

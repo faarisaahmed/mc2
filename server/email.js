@@ -69,11 +69,11 @@ function inviteEmail({ kind, inviter, mosqueName, role, perms, link, email }) {
     <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:999px;background:${GREEN}">
       <a href="${esc(link)}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none">Accept the invite</a>
     </td></tr></table>
-    <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:${MUTED}">The button signs you in to MasjidHub as <strong>${esc(email)}</strong>, with no password needed, even if you don't have an account yet. Then tap <strong>Accept</strong>. The link works once.</p>
+    <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:${MUTED}">The button signs you in to MasjidHub as <strong>${esc(email)}</strong> and accepts the invite, with no password needed, even if you don't have an account yet. The link works once.</p>
   </td></tr>
   <tr><td style="padding:18px 28px;border-top:1px solid #ece7da;font-size:12px;line-height:1.6;color:${MUTED}">Not expecting this? You can ignore this email; nothing happens unless you accept.</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = `Assalamu alaikum,\n\n${lead.replace(/<[^>]+>/g, "")}\n${what}\n\nAccept the invite: ${link}\n\nThe link signs you in as ${email} (no password needed, even without an account), then tap Accept. It works once.\n\nNot expecting this? Ignore this email.`;
+  const text = `Assalamu alaikum,\n\n${lead.replace(/<[^>]+>/g, "")}\n${what}\n\nAccept the invite: ${link}\n\nThe link signs you in as ${email} and accepts the invite (no password needed, even without an account). It works once.\n\nNot expecting this? Ignore this email.`;
   return { subject, html, text };
 }
 

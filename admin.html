@@ -320,7 +320,7 @@
   function inviteMessage(name, email, role, sent) {
     sendSheet(email, `Assalamu alaikum! You've been added as ${role === "owner" ? "an owner" : "an editor"} of ${name} on MasjidHub.\n\n${steps(email)}\n\nYou can then update iqamah times, events and announcements.`, sent);
   }
-  const steps = email => `1. Open the "Sign in to MasjidHub" email we sent to ${email} and tap the link. That signs you in; no password needed.\n   (No email? Open ${new URL("account.html", location.href).href} and sign in or create an account with ${email}.)\n2. Tap Accept on the invite.`;
+  const steps = email => `1. Open the email we sent to ${email} and tap the button. That signs you in and accepts the invite; no password needed.\n2. No email? Open ${new URL("account.html", location.href).href}, sign in or create an account with ${email}, and tap Accept on the invite.`;
   // Emails the invitee a one-tap sign-in link (Firebase's "Sign in to MasjidHub" email). Works whether or not they
   // have an account yet. Returns false if it couldn't be sent, so the admin knows to send the message themselves.
   // With server emails on (server/), the invite email goes out by itself when the invite is saved.
@@ -619,11 +619,14 @@
     pane(`<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Site admins</h2>
       <p class="small muted">Site admins help run MasjidHub as a whole. Each mosque's own staff go in that mosque's Team tab instead. Only you, the top admin, can see this page.</p>
       <div class="list-row"><div><strong>${e(me.displayName || me.email)}</strong> (you)<div class="small muted" style="overflow-wrap:anywhere">${me.displayName ? e(me.email) + " · " : ""}Top admin: everything</div></div></div>
+      <h3 style="margin:18px 0 4px">Site admins (${admins.length + 1})</h3>
       ${admins.map(a => `<div class="list-row" data-admin="${e(a.uid)}"><div style="flex:1;min-width:0"><strong style="overflow-wrap:anywhere">${e(a.name || a.email)}</strong>${a.name ? `<div class="small muted" style="overflow-wrap:anywhere">${e(a.email)}</div>` : ""}
-          <fieldset style="border:0;padding:0;margin:8px 0 0"><legend class="sr-only">Permissions for ${e(a.email)}</legend>${boxes("perm", a.perms)}</fieldset></div>
+          <div class="small" style="margin-top:4px"><span class="muted">Can:</span> <span data-can>${e(permList(a.perms))}</span>${shortDate(a.added) ? `<span class="muted"> · joined ${e(shortDate(a.added))}</span>` : ""}</div>
+          <details class="pending" style="margin-top:6px;border-top:0"><summary class="small" style="min-height:44px;font-size:.92rem">Change what they can do</summary>
+          <fieldset style="border:0;padding:0;margin:4px 0 0"><legend class="sr-only">Permissions for ${e(a.email)}</legend>${boxes("perm", a.perms)}</fieldset></details></div>
         <div class="acts"><button class="btn sm danger" type="button" data-rm-admin="${e(a.uid)}">Remove</button></div></div>`).join("")}
-      ${admins.length ? "" : `<p class="muted">No other site admins yet.</p>`}
-      ${pendingBox("Invited, not accepted yet", invites.length, invites.length > 1 ? `<p style="margin:4px 0 0"><button class="link-btn" type="button" id="a-all">Email them all again</button></p>` : "", `${invites.map(i => `<div class="list-row"><div><strong style="overflow-wrap:anywhere">${e(i.email)}</strong><div class="small muted">${permList(i.perms)}</div>
+      ${admins.length ? "" : `<p class="muted">Nobody has accepted an invite yet.</p>`}
+      ${pendingBox("Invited, not accepted yet", invites.length, invites.length > 1 ? `<p style="margin:4px 0 0"><button class="link-btn" type="button" id="a-all">Email them all again</button></p>` : "", `${invites.map(i => `<div class="list-row"><div><strong style="overflow-wrap:anywhere">${e(i.email)}</strong><div class="small muted">${permList(i.perms)}${shortDate(i.created) ? ` · invited ${e(shortDate(i.created))}` : ""}</div>
         <div class="link-acts"><button type="button" data-aresend="${e(i.email)}">Resend email</button><button type="button" data-amsg="${e(i.email)}">Show message</button><button type="button" class="danger" data-acancel="${e(i.email)}">Cancel invite</button></div></div></div>`).join("")}`)}
       <form id="ainv" style="margin-top:18px" novalidate><h3 style="margin:0 0 10px">Invite site admins</h3>
         <div class="field"><label for="ainv-e">Emails</label><textarea id="ainv-e" rows="3" autocomplete="off" spellcheck="false" placeholder="one@example.com, two@example.com" aria-describedby="ainv-h"></textarea>
@@ -635,7 +638,7 @@
     const permsOf = (root, attr) => Object.fromEntries(PERMS.map(([k]) => [k, root.querySelector(`[data-${attr}="${k}"]`).checked]));
     $("pane").querySelectorAll("[data-admin]").forEach(row => row.querySelectorAll("[data-perm]").forEach(cb => cb.onchange = async () => {
       cb.disabled = true;
-      try { await fs.updateDoc(fs.doc(db, "admins", row.dataset.admin), { perms: permsOf(row, "perm"), updated: fs.serverTimestamp() }); MH.toast("Permissions saved"); }
+      try { const perms = permsOf(row, "perm"); await fs.updateDoc(fs.doc(db, "admins", row.dataset.admin), { perms, updated: fs.serverTimestamp() }); row.querySelector("[data-can]").textContent = permList(perms); MH.toast("Permissions saved"); }
       catch (ex) { cb.checked = !cb.checked; fail(ex); }
       finally { cb.disabled = false; }
     }));
