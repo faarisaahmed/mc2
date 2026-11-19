@@ -136,7 +136,7 @@
     if (!u) return drawWho(null);
     drawWho(u);
     const [r, rsvps, apps] = await Promise.all([
-      MH_DB.roles().catch(() => ({ top: false, siteAdmin: false, perms: {}, mosques: [], invites: [], adminInvite: null })),
+      MH_DB.roles().catch(ex => ({ failed: ex, top: false, siteAdmin: false, perms: {}, mosques: [], invites: [], adminInvite: null })),
       MH_DB.refreshRsvps().catch(() => []),
       myApplications(u).catch(() => [])
     ]);
@@ -198,6 +198,12 @@
   function mosqueName(id) { const m = MH_DATA.mosques.find(x => x.id === id); return m ? m.name : id; }
   const permText = p => [p.mosques && "manage every mosque", p.applications && "review mosque applications"].filter(Boolean).join(" and ") || "no permissions yet";
   function drawRoles(u, r) {
+    // Don't hide a failure here: it would look exactly like "you have no invites".
+    if (r.failed) {
+      $("roles").innerHTML = `<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Admin</h2><p class="small" role="alert" style="color:var(--danger);margin:0 0 10px">We couldn't check for invites or admin access: ${e(r.failed.message || "unknown error")}</p><button class="btn sm ghost" type="button" id="roles-retry">Try again</button></div>`;
+      $("roles-retry").onclick = () => drawSignedIn();
+      return;
+    }
     if (!r.siteAdmin && !r.mosques.length && !r.invites.length && !r.adminInvite) { $("roles").innerHTML = ""; return; }
     const ai = r.adminInvite;
     $("roles").innerHTML = `<div class="panel"><h2 class="panel-h">${MH.icon("shield")} Admin</h2>
