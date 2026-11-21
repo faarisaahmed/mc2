@@ -534,6 +534,9 @@ details.more[open] summary::before{content:"– "}
 .setup-list li.done .ic{color:var(--accent)}
 /* Dashboard: mosque applications */
 .app-card{padding:16px 0;border-top:1px solid var(--line)}
+.vcheck{margin:12px 0 0;padding:12px 14px;border-radius:14px;background:var(--tile);border:1px solid var(--line)}
+.vcheck .check{margin:6px 0 8px}
+.vcheck .check span{font-size:.92rem}
 .app-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .app-more>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--accent);font-weight:600;font-size:.92rem;width:max-content}
 .app-acts{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap}

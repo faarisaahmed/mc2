@@ -55,7 +55,7 @@
       <div class="section-head"><p class="eyebrow">How it works</p><h2 class="title">Live in three steps.</h2></div>
       <ol class="how">
         <li><strong>Apply</strong><span class="muted">Fill in the short form below. It takes about three minutes.</span></li>
-        <li><strong>We verify</strong><span class="muted">The MasjidHub team contacts you by email to confirm you represent the mosque, and checks its details.</span></li>
+        <li><strong>We verify</strong><span class="muted">We check the mosque is real and confirm your role with someone else there, like the imam or board president. Verified mosques get a badge on their page.</span></li>
         <li><strong>Your team takes over</strong><span class="muted">You get an email invite to your mosque's dashboard, with a short checklist: iqamah times, Jumu'ah, a description and your first event.</span></li>
       </ol>
     </div>
@@ -95,11 +95,19 @@
         <div class="chips" id="features" style="margin:8px 0 22px"></div>
 
         <h3 style="margin:8px 0 14px">2 · About you</h3>
+        <p class="small muted" id="signed-hint" style="margin:-6px 0 14px"></p>
         <div class="row">
           <div class="field"><label for="contact">Your name *</label><input type="text" id="contact" required autocomplete="name"></div>
           <div class="field"><label for="role">Your role *</label><select id="role" required><option value="">Choose…</option><option>Imam</option><option>Board member</option><option>Administrator</option><option>Volunteer</option><option>Community member</option></select></div>
         </div>
-        <div class="field"><label for="email">Email *</label><input type="email" id="email" required autocomplete="email"><span class="hint">We'll contact you here to verify the mosque.</span></div>
+        <div class="field"><label for="email">Email *</label><input type="email" id="email" required autocomplete="email"><span class="hint">We'll contact you here. An address at your mosque's own website (like you@yourmasjid.org) makes checking quicker.</span></div>
+
+        <h3 style="margin:8px 0 6px">3 · Someone who can vouch for you</h3>
+        <p class="small muted" style="margin:0 0 14px">So nobody can claim a mosque that isn't theirs, we confirm every application with someone else at the mosque, usually the imam, board president or secretary. We contact them once, only for this.</p>
+        <div class="row">
+          <div class="field"><label for="ref-name">Their name and role *</label><input type="text" id="ref-name" maxlength="100" placeholder="e.g. Br. Ahmed, board president"></div>
+          <div class="field"><label for="ref-contact">Their email or phone *</label><input type="text" id="ref-contact" maxlength="200"></div>
+        </div>
         <div class="field"><label for="notes">Anything else?</label><textarea id="notes" placeholder="Programs, languages spoken, accessibility…"></textarea></div>
         <label style="display:flex;gap:10px;align-items:flex-start;margin:6px 0 18px"><input type="checkbox" id="ok" style="width:20px;height:20px;margin-top:2px;accent-color:var(--green)"> <span>I'm authorized to represent this mosque, or I'll share this with someone who is.</span></label>
         <p class="small" id="err" style="color:var(--danger);min-height:1.2em" role="alert"></p>
@@ -138,6 +146,10 @@
   document.addEventListener("DOMContentLoaded", () => {
     $("method").innerHTML = Object.entries(MH.METHODS).map(([k, m]) => `<option value="${k}">${m.t}</option>`).join("");
     renderFeatures(); renderMine();
+    // Applying while signed in ties the application to your account, so you can follow it on the Account page.
+    const acct = MH.store.get("account", null);
+    $("signed-hint").innerHTML = acct && acct.email ? `Signed in as ${MH.esc(acct.email)}. You can follow this application on your <a href="account.html">Account page</a>.`
+      : `Tip: <a href="account.html?next=join.html">sign in first</a> to follow your application's progress on your Account page.`;
     $("features").onclick = e => { const b = e.target.closest("[data-f]"); if (!b) return; const f = b.dataset.f; picked.has(f) ? picked.delete(f) : picked.add(f); renderFeatures(); };
     $("mine").onclick = e => {
       const b = e.target.closest("[data-rm]"); if (!b) return;
@@ -151,7 +163,7 @@
     $("form").onsubmit = async e => {
       e.preventDefault();
       const val = id => $(id).value.trim();
-      const missing = [["name", "mosque name"], ["address", "address"], ["contact", "your name"], ["role", "your role"], ["email", "email"]].filter(([id]) => !val(id));
+      const missing = [["name", "mosque name"], ["address", "address"], ["contact", "your name"], ["role", "your role"], ["email", "email"], ["ref-name", "someone who can vouch for you"], ["ref-contact", "their email or phone"]].filter(([id]) => !val(id));
       if (missing.length) { $("err").textContent = `Please add: ${missing.map(m => m[1]).join(", ")}.`; $(missing[0][0]).focus(); return; }
       if (!/^\S+@\S+\.\S+$/.test(val("email"))) { $("err").textContent = "Please check your email address."; $("email").focus(); return; }
       if (!$("ok").checked) { $("err").textContent = "Please confirm you can represent this mosque."; return; }
@@ -161,11 +173,20 @@
       try { pos = await geocode(val("address")); } catch (err) { /* offline */ }
       if (!pos) { $("submit").disabled = false; $("submit").textContent = "Submit application"; $("err").textContent = "We couldn't find that address. Try adding the city and state."; $("address").focus(); return; }
       const app = { name: val("name"), address: val("address"), lat: pos.lat, lng: pos.lng, phone: val("phone"), website: val("website"),
-        method: $("method").value, jumuah: val("jumuah"), features: [...picked], contact: val("contact"), role: val("role"), email: val("email"), notes: val("notes") };
+        method: $("method").value, jumuah: val("jumuah"), features: [...picked], contact: val("contact"), role: val("role"), email: val("email"), notes: val("notes"),
+        refName: val("ref-name"), refContact: val("ref-contact") };
       $("submit").textContent = "Sending…";
       let dbId;
       try { dbId = await MH_DB.addApplication(app); }
-      catch (err) { $("submit").disabled = false; $("submit").textContent = "Submit application"; $("err").textContent = "We couldn't send your application. Check your connection and try again."; return; }
+      catch (err) {
+        // Until the database rules that know the reference fields are deployed, send the reference in the notes instead.
+        if (err && err.code === "permission-denied" && app.refName) {
+          const { refName, refContact, ...rest } = app;
+          rest.notes = `Reference: ${refName}, ${refContact}${rest.notes ? "\n\n" + rest.notes : ""}`.slice(0, 2000);
+          try { dbId = await MH_DB.addApplication(rest); } catch (e2) { /* fall through */ }
+        }
+      }
+      if (!dbId) { $("submit").disabled = false; $("submit").textContent = "Submit application"; $("err").textContent = "We couldn't send your application. Check your connection and try again."; return; }
       // Keep a copy on this device so it shows on your map as pending and can be withdrawn.
       const apps = MH.store.get("applications", []);
       apps.push(Object.assign({ id: "app-" + Date.now(), short: app.name, submitted: Date.now(), dbId }, app));
@@ -176,7 +197,7 @@
       bd.className = "sheet-backdrop open";
       bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" style="text-align:center"><div style="color:var(--gold)">${MH.icon("mosque","ic-lg")}</div><h2>Application received</h2>
         <p class="muted">Thank you. It's on its way to the MasjidHub team, and shows on your map as pending. What happens next:</p>
-        <ol style="text-align:start;line-height:1.8"><li>We contact you by email to verify the mosque.</li><li>Once verified, your mosque goes live for everyone nearby.</li><li>Your team gets an email invite to your mosque's dashboard.</li></ol>
+        <ol style="text-align:start;line-height:1.8"><li>We check the mosque is real and confirm with the person who vouched for you. This usually takes a few days.</li><li>Once verified, your mosque goes live for everyone nearby.</li><li>Your team gets an email invite to your mosque's dashboard.</li></ol>
         <div class="actions" style="justify-content:center"><a class="btn" href="map.html">See it on the map</a></div></div>`;
       document.body.appendChild(bd);
       bd.onclick = ev => { if (ev.target === bd) bd.remove(); };

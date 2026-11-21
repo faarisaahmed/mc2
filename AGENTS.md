@@ -122,11 +122,13 @@ Every page loads scripts in this order:
     top admin lists, changes or removes them.
   - `adminInvites/{email}`: pending site-admin invites (doc id = lowercased email). Top admin writes; the invitee reads or declines.
   - `mosques/{id}`: public profile, `iqamah` (`{fajr: "06:15" | "+10"}`), `jumuah` (`["13:15"]`), `published`, `managed`
-    (true = events come from the database, not `data.js`). Subcollections: `members`, `invites` (doc id = lowercased
+    (true = events come from the database, not `data.js`), `verified` (site admins only; shows a badge on the mosque page). Subcollections: `members`, `invites` (doc id = lowercased
     email), `events` (same fields as `data.js` events, plus `rsvp`/`volunteer`), `announcements`, `rsvps`
     (doc id = `<event>_<yyyy-mm-dd>_<uid>`).
   - `applications`: Add your mosque. `status`: pending, info (reviewer asked something, see `note`), approved (`mosqueId`),
     rejected. Anyone creates; site admins with `perms.applications` review and may edit details first; signed-in applicants see their own.
+    Applicants name a reference at the mosque (`refName`, `refContact`). Reviewers tick `checks` (`listing`, `phone`, `reference`,
+    `email`); the dashboard only enables Approve after a phone call or the reference, plus one more check.
 - Public pages read content through `assets/js/content.js` (Firestore REST, no SDK, cached in `mh:content`) and
   redraw through `MH.onPrefs` listeners when it changes. `data.js` stays the fallback for mosques not yet managed.
 - Server code lives in `server/` (Cloud Functions, Node 22; not named `functions/`, because Cloudflare Pages would

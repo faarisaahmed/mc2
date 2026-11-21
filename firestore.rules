@@ -78,7 +78,7 @@ service cloud.firestore {
     // ---------- Mosques ----------
     function profileKeys() {
       return ["name", "short", "address", "lat", "lng", "phone", "email", "website", "donateUrl", "about",
-              "values", "features", "method", "published", "managed", "iqamah", "jumuah", "updated", "updatedBy"];
+              "values", "features", "method", "published", "managed", "verified", "iqamah", "jumuah", "updated", "updatedBy"];
     }
     function validMosque(d) {
       return d.keys().hasOnly(profileKeys())
@@ -87,7 +87,7 @@ service cloud.firestore {
         && (!("lng" in d) || (d.lng is number && d.lng >= -180 && d.lng <= 180))
         && optStr(d, "phone", 40) && optStr(d, "email", 200) && optStr(d, "website", 300)
         && optStr(d, "donateUrl", 300) && optStr(d, "about", 1000) && optStr(d, "values", 120)
-        && optList(d, "features", 30) && optStr(d, "method", 20)
+        && optList(d, "features", 30) && optStr(d, "method", 20) && optBool(d, "verified")
         && optBool(d, "published") && optBool(d, "managed")
         && optMap(d, "iqamah") && optList(d, "jumuah", 6);
     }
@@ -98,7 +98,7 @@ service cloud.firestore {
       // Owners edit the profile; editors only the times.
       allow update: if validMosque(request.resource.data) && (
         can("mosques")
-        || (isOwner(m) && changed().hasOnly(profileKeys()) && !changed().hasAny(["published", "managed"]))
+        || (isOwner(m) && changed().hasOnly(profileKeys()) && !changed().hasAny(["published", "managed", "verified"]))
         || (isMember(m) && changed().hasOnly(["iqamah", "jumuah", "updated", "updatedBy"])));
 
       // Team. People join by claiming an invite sent to their verified email.
@@ -196,9 +196,10 @@ service cloud.firestore {
       allow get: if can("applications") || (signedIn() && resource.data.get("uid", "") == me());
       allow list: if can("applications") || (signedIn() && resource.data.get("uid", "") == me());
       // Reviewers move it along (waiting, info asked, approved, declined), leave a note for the applicant,
-      // and may fix its details before approving.
+      // tick off verification checks, and may fix its details before approving.
       allow update: if can("applications")
-        && changed().hasOnly(["status", "mosqueId", "reviewed", "note", "name", "address", "phone", "website", "method", "jumuah"])
+        && changed().hasOnly(["status", "mosqueId", "reviewed", "note", "name", "address", "phone", "website", "method", "jumuah", "checks"])
+        && (!("checks" in request.resource.data) || validChecks(request.resource.data.checks))
         && request.resource.data.status in ["pending", "info", "approved", "rejected"]
         && str(request.resource.data.name, 2, 120) && str(request.resource.data.address, 5, 200)
         && optStr(request.resource.data, "note", 1000) && optStr(request.resource.data, "phone", 40)
@@ -207,9 +208,16 @@ service cloud.firestore {
       allow delete: if true;   // withdrawing needs the unguessable doc id, which only the submitter's browser has
     }
 
+    // How a reviewer confirmed the applicant really represents the mosque (admin.html, Applications).
+    function validChecks(c) {
+      return c is map && c.keys().hasOnly(["listing", "phone", "reference", "email"])
+        && c.get("listing", false) is bool && c.get("phone", false) is bool
+        && c.get("reference", false) is bool && c.get("email", false) is bool;
+    }
+
     function validApplication(d) {
       return d.keys().hasOnly(["name", "address", "lat", "lng", "phone", "website", "method", "jumuah",
-                                "features", "contact", "role", "email", "notes", "status", "submitted", "uid"])
+                                "features", "contact", "role", "email", "notes", "refName", "refContact", "status", "submitted", "uid"])
         && d.keys().hasAll(["name", "address", "lat", "lng", "contact", "role", "email", "status", "submitted"])
         && str(d.name, 2, 120)
         && str(d.address, 5, 200)
@@ -220,6 +228,7 @@ service cloud.firestore {
         && str(d.email, 5, 200) && d.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
         && optStr(d, "phone", 40) && optStr(d, "website", 300) && optStr(d, "method", 20)
         && optStr(d, "jumuah", 100) && optStr(d, "notes", 2000) && optList(d, "features", 20)
+        && optStr(d, "refName", 100) && optStr(d, "refContact", 200)
         && (!("uid" in d) || (signedIn() && d.uid == me()))
         && d.status == "pending"
         && d.submitted == request.time;

@@ -65,6 +65,7 @@
     <section class="tile dark" style="padding:52px 22px 56px">
       ${m.values ? `<p class="eyebrow">${e(m.values)}</p>` : ""}
       <h2 class="headline" style="font-size:clamp(2.1rem,5.4vw,3.8rem)">${e(m.name)}</h2>
+      ${m.verified ? `<p style="margin:0 0 14px"><span class="pill gold" title="The MasjidHub team confirmed this page is run by the mosque's own team">${MH.icon("shield")} Verified by MasjidHub</span></p>` : ""}
       ${m.about ? `<p class="lead">${e(m.about)}</p>` : ""}
       <div class="cta-row">
         <a class="btn gold" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(m.address)}">Directions</a>
